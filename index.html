@@ -148,6 +148,39 @@
       .card { border: none; box-shadow: none; padding: 0; }
       .bulletin-box { border: 2px solid #000; width: 100%; max-width: 100%; }
     }
+
+    /* ===== Thème professionnel v13 ===== */
+    :root { --primary: #0b5d4b; --primary-dark: #073b30; --primary-light: #e6f4ef; --accent: #d9a21b; --bg: #eef2f1; --border: #d5dedb; --shadow: 0 1px 2px rgba(7,59,48,.06), 0 6px 18px rgba(7,59,48,.07); }
+    * { font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
+    body { background: radial-gradient(1200px 500px at 100% -10%, #dcefe8 0%, transparent 60%), var(--bg); }
+    header { background: linear-gradient(120deg, #073b30 0%, #0b5d4b 60%, #14806a 100%); box-shadow: 0 4px 16px rgba(7,59,48,.25); }
+    nav { background: rgba(255,255,255,.92); backdrop-filter: blur(6px); position: sticky; top: 0; z-index: 20; box-shadow: 0 1px 0 var(--border); }
+    .nav-tabs { gap: .35rem; padding: .35rem 0; }
+    .nav-tab { padding: .5rem .95rem; border-radius: 999px; border-bottom: none !important; white-space: nowrap; transition: background .15s, color .15s; }
+    .nav-tab:hover { background: var(--primary-light); color: var(--primary); }
+    .nav-tab.active { background: var(--primary); color: #fff; box-shadow: 0 2px 8px rgba(11,93,75,.35); }
+    .card { border: 1px solid #e3ebe8; border-radius: 16px; box-shadow: var(--shadow); }
+    .btn { border-radius: 10px; transition: transform .1s, box-shadow .15s, filter .15s; }
+    .btn:hover { transform: translateY(-1px); filter: brightness(1.05); }
+    .btn-primary { background: linear-gradient(135deg, #0b5d4b, #14806a); box-shadow: 0 2px 8px rgba(11,93,75,.3); }
+    input, select, textarea { border-radius: 10px; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(11,93,75,.15); }
+    table { border-collapse: separate; border-spacing: 0; }
+    thead th { background: #f2f7f5; color: var(--primary-dark); font-size: .72rem; letter-spacing: .04em; text-transform: uppercase; }
+    tbody tr:nth-child(even) td { background: #fafcfb; }
+    tbody tr:hover td { background: var(--primary-light); }
+    .dash-hero { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; padding: 1.4rem 1.6rem; margin-bottom: 1.25rem; border-radius: 18px; color: #fff; background: linear-gradient(120deg, #073b30 0%, #0b5d4b 55%, #1d9378 100%); box-shadow: 0 10px 28px rgba(7,59,48,.28); position: relative; overflow: hidden; }
+    .dash-hero::after { content: ''; position: absolute; right: -60px; top: -60px; width: 220px; height: 220px; border-radius: 50%; background: rgba(255,255,255,.09); }
+    .dash-hero h2 { font-size: 1.35rem; font-weight: 800; }
+    .dash-hero p { opacity: .88; font-size: .88rem; }
+    .dash-chip { background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.25); border-radius: 999px; padding: 4px 12px; font-size: .78rem; font-weight: 600; margin-right: 6px; display: inline-block; margin-top: 8px; }
+    .kpi { position: relative; border: 1px solid #e3ebe8; border-radius: 16px; padding: 1rem 1rem 1rem 1.1rem; box-shadow: var(--shadow); transition: transform .15s, box-shadow .15s; overflow: hidden; }
+    .kpi::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: var(--primary); }
+    .kpi.amber::before { background: var(--accent); } .kpi.red::before { background: var(--danger); }
+    .kpi:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(7,59,48,.14); }
+    .kpi-ic { position: absolute; right: 12px; top: 10px; width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; background: var(--primary-light); }
+    .kpi.amber .kpi-ic { background: #fdf3d6; } .kpi.red .kpi-ic { background: var(--danger-bg); }
+    .kpi-value { font-size: 1.9rem; letter-spacing: -.02em; }
   </style>
 </head>
 <body class="locked">
@@ -169,7 +202,8 @@
         <button type="submit" class="btn btn-primary" style="width: 100%; padding: 10px;">Se connecter</button>
       </form>
       <p class="login-switch">Pas encore de compte ? <a href="#" id="linkToRegister">Créer un compte</a></p>
-      <details class="demo-accounts">
+      <p class="login-switch hidden" id="firstInstallP" style="margin-top:6px;"><a href="#" id="linkFirstInstall">Première installation : créer l'administrateur</a></p>
+      <details class="demo-accounts" id="demoAccounts">
         <summary>Comptes de démonstration</summary>
         <table>
           <thead><tr><th>E-mail</th><th>Mot de passe</th><th>Rôle</th></tr></thead>
@@ -281,6 +315,7 @@
       </div>
       <button type="button" class="btn btn-outline no-print" id="btnPrintDash">Imprimer le rapport</button>
     </div>
+    <div class="dash-hero no-print" id="dashHero"></div>
     <div class="kpi-grid" id="dashKpis"></div>
     <div class="card"><h3>Comparatif des classes</h3><div style="overflow-x: auto;"><table><thead id="dashClassHead"></thead><tbody id="dashClassBody"></tbody></table></div></div>
     <div class="grid-2">
@@ -1082,7 +1117,7 @@
   function matriculeExists(m) { return appState.students.some(x => (x.matricule || '').toLowerCase() === m.toLowerCase()); }
   function newStudentId() {
     // En mode synchronisé, identifiant unique par appareil (évite les doublons entre appareils hors connexion)
-    if (localStorage.getItem('erp_sync_cfg')) return Date.now() * 1000 + Math.floor(Math.random() * 1000);
+    if (localStorage.getItem('erp_sync_cfg') || (typeof isCloud === 'function' && isCloud())) return Date.now() * 1000 + Math.floor(Math.random() * 1000);
     return appState.students.length ? Math.max(...appState.students.map(s => s.id)) + 1 : 1;
   }
   function findAncien(m) {
@@ -1276,6 +1311,7 @@
   }
 
   function logout() {
+    if (typeof cloudSignOut === 'function') cloudSignOut();
     currentUser = null;
     try { sessionStorage.removeItem(SESSION_KEY); } catch (e) {}
     document.getElementById('loginUser').value = '';
@@ -1961,6 +1997,8 @@
     const students = classStudents();
     renderClassCompare(showFin);
     document.getElementById('dashSub').textContent = `${appState.classe} • ${periodLabel()} • Barème sur ${bareme}`;
+    { const h = new Date().getHours(), hi = h < 12 ? 'Bonjour' : h < 18 ? 'Bon après-midi' : 'Bonsoir';
+      document.getElementById('dashHero').innerHTML = `<div><h2>${hi}, ${esc((currentUser && currentUser.nom) || '')}</h2><p>${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p><span class="dash-chip">Classe ${esc(appState.classe)}</span><span class="dash-chip">${esc(periodLabel())}</span><span class="dash-chip">Barème /${bareme}</span></div><div style="font-weight:800; letter-spacing:.05em; opacity:.95;">GROUPE SCOLAIRE EXCELLENCE</div>`; }
     document.getElementById('dashFinBlock').classList.toggle('hidden', !showFin);
 
     const data = students.map(s => ({ s, moy: computeStudentBulletin(s).moyGen }));
@@ -1982,14 +2020,14 @@
     const tauxReussite = Math.round(ok / n * 100);
 
     const kp = [
-      { l: 'Effectif', v: n, s: 'élèves inscrits' },
-      { l: 'Moyenne de classe', v: fmt(avg), s: `sur ${bareme}` },
-      { l: 'Taux de réussite', v: tauxReussite + ' %', s: `${ok} élève(s) à ${seuil} ou plus`, c: tauxReussite < 50 ? 'red' : '' },
-      { l: 'Meilleure moyenne', v: fmt(best.moy), s: esc(best.s.nom), c: 'amber' },
-      { l: 'Absences cumulées', v: absTot + ' h', s: 'tous élèves confondus', c: 'amber' }
+      { i: '👥', l: 'Effectif', v: n, s: 'élèves inscrits' },
+      { i: '📊', l: 'Moyenne de classe', v: fmt(avg), s: `sur ${bareme}` },
+      { i: '✅', l: 'Taux de réussite', v: tauxReussite + ' %', s: `${ok} élève(s) à ${seuil} ou plus`, c: tauxReussite < 50 ? 'red' : '' },
+      { i: '🏆', l: 'Meilleure moyenne', v: fmt(best.moy), s: esc(best.s.nom), c: 'amber' },
+      { i: '🕒', l: 'Absences cumulées', v: absTot + ' h', s: 'tous élèves confondus', c: 'amber' }
     ];
-    if (showFin) kp.push({ l: 'Recouvrement', v: taux + ' %', s: `${formatGNF(percu)} encaissés`, c: taux < 50 ? 'red' : '' });
-    kpis.innerHTML = kp.map(k => `<div class="kpi ${k.c || ''}"><div class="kpi-label">${k.l}</div><div class="kpi-value">${k.v}</div><div class="kpi-sub">${k.s}</div></div>`).join('');
+    if (showFin) kp.push({ i: '💰', l: 'Recouvrement', v: taux + ' %', s: `${formatGNF(percu)} encaissés`, c: taux < 50 ? 'red' : '' });
+    kpis.innerHTML = kp.map(k => `<div class="kpi ${k.c || ''}"><div class="kpi-ic">${k.i || ''}</div><div class="kpi-label">${k.l}</div><div class="kpi-value">${k.v}</div><div class="kpi-sub">${k.s}</div></div>`).join('');
 
     // Moyenne par matière
     const subs = appState.subjects[appState.classe] || [];
@@ -2279,8 +2317,11 @@
   const JOURS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
   let edtMode = 'classe', edtTarget = '';
   const toMin = h => { const [a, b] = String(h).split(':'); return (parseInt(a) || 0) * 60 + (parseInt(b) || 0); };
-  function profList() { return appState.users.filter(u => u.role === 'PROF' && u.statut === 'actif'); }
-  function profName(id) { const u = appState.users.find(x => x.id === id); return u ? u.nom : ''; }
+  function profList() {
+    if (isCloud() && !can('users')) return (appState.profsPublic || []).map(p => ({ id: p.id, nom: p.nom }));
+    return appState.users.filter(u => u.role === 'PROF' && u.statut === 'actif');
+  }
+  function profName(id) { const u = profList().find(x => x.id === id); return u ? u.nom : ''; }
   function edtCanEdit() { return can('edt_edit') || can('config'); }
   function renderEdt() {
     const canEdit = edtCanEdit();
@@ -2643,6 +2684,7 @@
     if (Date.now() < lockUntil) return fail(`Trop de tentatives. Réessayez dans ${Math.ceil((lockUntil - Date.now()) / 1000)} secondes.`);
     const login = document.getElementById('loginUser').value.trim().toLowerCase();
     const pass = document.getElementById('loginPass').value;
+    if (isCloud()) { cloudLogin(login, pass, fail); return; }
     const user = appState.users.find(u => u.username.toLowerCase() === login);
     if (user && user.pwd === hashPwd(pass)) {
       if (user.statut === 'attente') return fail("Votre compte est en attente de validation par l'administrateur.");
@@ -2695,6 +2737,15 @@
     if (!['PROF', 'ELEVE', 'PARENT'].includes(role)) return fail('Rôle non autorisé.');
     if (pass.length < 6) return fail('Le mot de passe doit contenir au moins 6 caractères.');
     if (pass !== document.getElementById('regPass2').value) return fail('Les deux mots de passe ne correspondent pas.');
+    if (isCloud()) {
+      const prof = { username: email, nom, role, roleDemande: role, note, statut: 'attente', affect: [], eleves: [], createdAt: new Date().toISOString() };
+      if (role === 'PROF') Object.assign(prof, { tel, tauxHoraire: taux, cotisation: cot, tontine: ton });
+      cloudRegister(email, pass, prof).then(() => {
+        document.getElementById('registerForm').reset();
+        showLoginMode(false, "Demande envoyée. Votre compte sera utilisable dès que l'administrateur l'aura validé.");
+      }).catch(err => fail(/email-already-in-use/.test((err && err.code) || '') ? 'Un compte existe déjà avec cette adresse e-mail.' : 'Impossible de créer le compte : ' + ((err && err.message) || 'vérifiez la connexion internet.')));
+      return;
+    }
     if (appState.users.some(u => u.username.toLowerCase() === email.toLowerCase())) return fail('Un compte existe déjà avec cette adresse e-mail.');
     const nu = {
       id: 'u_' + Date.now(), username: email, nom, role, roleDemande: role, note,
@@ -2729,6 +2780,16 @@
     if (appState.users.some(u => u.username.toLowerCase() === username.toLowerCase())) return alert('Cette adresse e-mail est déjà utilisée.');
     const acc = collectAccess(role, 'uAffectList', 'uElevesList');
     if (acc.error) return alert(acc.error);
+    if (isCloud()) {
+      cloudCreateAuth(username, pass).then(uid => {
+        appState.users.push({ id: uid, username, nom, role, statut: 'actif', affect: acc.affect, eleves: acc.eleves });
+        saveState(false);
+        document.getElementById('formAddUser').reset();
+        renderUsers();
+        showAlert('Compte créé : ' + username);
+      }).catch(err => alert(/email-already-in-use/.test((err && err.code) || '') ? 'Cette adresse e-mail est déjà utilisée.' : 'Création impossible : ' + ((err && err.message) || '')));
+      return;
+    }
     appState.users.push({ id: 'u_' + Date.now(), username, nom, role, pwd: hashPwd(pass), statut: 'actif', affect: acc.affect, eleves: acc.eleves });
     saveState(false);
     document.getElementById('formAddUser').reset();
@@ -2748,6 +2809,9 @@
     if (!u) return;
     if (action === 'edit') {
       openEdit(u);
+    } else if (action === 'pwd' && isCloud()) {
+      if (!confirm('Envoyer un e-mail de réinitialisation du mot de passe à ' + u.username + ' ?')) return;
+      ensureFirebase().then(() => firebase.auth().sendPasswordResetEmail(u.username)).then(() => showAlert('E-mail de réinitialisation envoyé à ' + u.username)).catch(err => alert('Envoi impossible : ' + ((err && err.message) || '')));
     } else if (action === 'pwd') {
       const np = prompt('Nouveau mot de passe pour ' + u.username + ' (6 caractères minimum) :');
       if (np === null) return;
@@ -3373,7 +3437,7 @@ let pendingPhoto = null;
 
   // ===== Synchronisation Firebase (hors ligne / en ligne) =====
   const SYNC_CFG_KEY = 'erp_sync_cfg', SYNC_META_KEY = 'erp_sync_meta';
-  const SYNC_KEYS = ['classes', 'subjects', 'fees', 'direction', 'presenceCfg', 'employes', 'edt'];
+  const SYNC_KEYS = ['classes', 'subjects', 'fees', 'direction', 'presenceCfg', 'employes', 'edt', 'rolePerms', 'profsPublic'];
   const SYNC_DICTS = { presence: 'pres', paie: 'paie' };
   const SDK = 'https://www.gstatic.com/firebasejs/9.23.0/';
   const sync = { cfg: null, db: null, remote: new Map(), meta: {}, lct: {}, unsub: null, timer: null, running: false, again: false, mode: null, applying: false, pendingRender: false, state: 'off' };
@@ -3417,6 +3481,7 @@ let pendingPhoto = null;
     if (sync.running) { sync.again = true; return; }
     sync.running = true;
     try {
+      pushProfiles();
       let mode = sync.mode; sync.mode = null;
       if (mode === 'pull' && sync.remote.size === 0) { mode = null; syncStatus('error', "le cloud est vide : aucune donnée à récupérer. Utilisez d'abord « Premier appareil » sur l'appareil qui contient les données."); sync.running = false; return; }
       const local = buildLocalDocs();
@@ -3446,7 +3511,8 @@ let pendingPhoto = null;
         if (ae && /^(INPUT|SELECT|TEXTAREA)$/.test(ae.tagName)) sync.pendingRender = true; else if (currentUser) renderAll();
       }
       saveSyncMeta();
-      const ops = [...push.map(id => ({ id, j: local[id] })), ...del.map(id => ({ id }))];
+      const canPush = !isCloud() || (currentUser && ['ADMIN', 'DIRECTION', 'PROF'].includes(currentUser.role));
+      const ops = canPush ? [...push.map(id => ({ id, j: local[id] })), ...del.map(id => ({ id }))] : [];
       if (ops.length) {
         syncStatus(navigator.onLine ? 'busy' : 'offline');
         for (let i = 0; i < ops.length; i += 400) {
@@ -3472,28 +3538,178 @@ let pendingPhoto = null;
   document.addEventListener('focusout', () => { if (sync.pendingRender) setTimeout(() => { const ae = document.activeElement; if (!(ae && /^(INPUT|SELECT|TEXTAREA)$/.test(ae.tagName)) && sync.pendingRender && currentUser) { sync.pendingRender = false; renderAll(); } }, 200); });
 
   const loadScript = src => new Promise((res, rej) => { const el = document.createElement('script'); el.src = src; el.onload = res; el.onerror = () => rej(new Error('Impossible de charger Firebase (pas d\'internet ?)')); document.head.appendChild(el); });
+
+  // ===== Mode multi-utilisateurs (un compte Firebase par personne) =====
+  const CLOUD_CONFIG = {
+    apiKey: "AIzaSyCAFuvaOBq7tfK8Xe6l_ji3h9RRP9OW6KE",
+    authDomain: "ecole-224.firebaseapp.com",
+    projectId: "ecole-224",
+    storageBucket: "ecole-224.firebasestorage.app",
+    messagingSenderId: "67933174496",
+    appId: "1:67933174496:web:c7f70480f7a5284c60ee85",
+    measurementId: "G-7VX670HNVC"
+  };
+  function isCloud() { return !!CLOUD_CONFIG; }
+  let fbReady = null;
+  function ensureFirebase() {
+    if (fbReady) return fbReady;
+    fbReady = (async () => {
+      if (!window.firebase) { await loadScript(SDK + 'firebase-app-compat.js'); await loadScript(SDK + 'firebase-auth-compat.js'); await loadScript(SDK + 'firebase-firestore-compat.js'); }
+      if (!firebase.apps.length) firebase.initializeApp(CLOUD_CONFIG || (sync.cfg && sync.cfg.firebase));
+      if (isCloud()) { try { await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.SESSION); } catch (e) {} }
+    })();
+    fbReady.catch(() => { fbReady = null; });
+    return fbReady;
+  }
+  const CACHE_KEY = 'erp_cloud_cache';
+  const cacheGet = () => { try { return JSON.parse(localStorage.getItem(CACHE_KEY) || '{}'); } catch (e) { return {}; } };
+  function cachePut(email, pass, user) { const c = cacheGet(); c[email.toLowerCase()] = { h: hashPwd(pass), user }; try { localStorage.setItem(CACHE_KEY, JSON.stringify(c)); } catch (e) {} }
+
+  function cloudEnter(user) {
+    if (user.role !== 'ADMIN') appState.users = [user];
+    const info = document.getElementById('loginInfo'); if (info) info.classList.add('hidden');
+    document.getElementById('loginPass').value = '';
+    document.getElementById('loginError').classList.add('hidden');
+    enterApp(user);
+    syncStart();
+  }
+  async function cloudLogin(login, pass, fail) {
+    let user = null;
+    try {
+      await ensureFirebase();
+      const cred = await firebase.auth().signInWithEmailAndPassword(login, pass);
+      const snap = await firebase.firestore().collection('profils').doc(cred.user.uid).get();
+      if (!snap.exists) { await firebase.auth().signOut(); return fail("Aucun profil n'est associé à ce compte. Contactez l'administrateur."); }
+      const p = snap.data();
+      if (p.statut === 'attente') { await firebase.auth().signOut(); return fail("Votre compte est en attente de validation par l'administrateur."); }
+      if (p.statut === 'refuse') { await firebase.auth().signOut(); return fail("Votre demande de compte a été refusée. Contactez l'administrateur."); }
+      user = { id: cred.user.uid, ...p }; delete user.pwd;
+      cachePut(login, pass, user);
+    } catch (err) {
+      const code = (err && err.code) || '';
+      if (/invalid-credential|wrong-password|user-not-found|invalid-email/.test(code)) { failCount++; if (failCount >= 5) { lockUntil = Date.now() + 30000; failCount = 0; } return fail('E-mail ou mot de passe incorrect.'); }
+      if (/too-many-requests/.test(code)) return fail('Trop de tentatives. Réessayez dans quelques minutes.');
+      const c = cacheGet()[login.toLowerCase()];
+      if (c && c.h === hashPwd(pass)) user = c.user;
+      else return fail('Connexion impossible (êtes-vous hors ligne ?). Une première connexion avec internet est nécessaire sur cet appareil.');
+    }
+    failCount = 0;
+    cloudEnter(user);
+  }
+  async function cloudRegister(email, pass, prof) {
+    await ensureFirebase();
+    const cred = await firebase.auth().createUserWithEmailAndPassword(email, pass);
+    try { await firebase.firestore().collection('profils').doc(cred.user.uid).set(prof); }
+    finally { await firebase.auth().signOut(); }
+  }
+  async function cloudCreateAuth(email, pass) {
+    await ensureFirebase();
+    let sec; try { sec = firebase.app('sec'); } catch (e) { sec = firebase.initializeApp(CLOUD_CONFIG, 'sec'); }
+    const cred = await sec.auth().createUserWithEmailAndPassword(email, pass);
+    await sec.auth().signOut();
+    return cred.user.uid;
+  }
+  function cloudSignOut() {
+    if (!isCloud()) return;
+    try { if (sync.unsub) sync.unsub(); if (sync.unsubProf) sync.unsubProf(); } catch (e) {}
+    sync.unsub = null; sync.unsubProf = null; sync.db = null; sync.profReady = false; sync.profJ = {}; sync.remote = new Map(); sync.first = true;
+    clearTimeout(sync.retry);
+    syncStatus('off');
+    try { if (window.firebase && firebase.apps.length) firebase.auth().signOut(); } catch (e) {}
+  }
+  async function cloudInit() {
+    document.getElementById('firstInstallP').classList.remove('hidden');
+    document.getElementById('demoAccounts').classList.add('hidden');
+    const card = document.getElementById('syncCard');
+    if (card) card.innerHTML = `<h2 style="font-size: 1.05rem; margin-bottom: 0.25rem;">Synchronisation en ligne</h2><p style="font-size: 0.82rem; color: var(--muted);">Mode multi-utilisateurs actif : chaque personne se connecte avec son propre compte et les données sont partagées automatiquement. Sans internet, vos modifications sont conservées et envoyées au retour de la connexion.</p><p id="syncMsg" style="font-size: 0.82rem; margin-top: 8px;"></p>`;
+    try {
+      await ensureFirebase();
+      firebase.auth().onAuthStateChanged(async (fu) => {
+        if (!fu || currentUser) return;
+        try {
+          const snap = await firebase.firestore().collection('profils').doc(fu.uid).get();
+          if (snap.exists && snap.data().statut === 'actif') cloudEnter({ id: fu.uid, ...snap.data() });
+        } catch (e) { /* hors ligne : on reste sur l'écran de connexion */ }
+      });
+    } catch (e) { /* hors ligne : connexion via le cache de l'appareil */ }
+  }
+  document.getElementById('linkFirstInstall').addEventListener('click', async (e) => {
+    e.preventDefault();
+    const email = (prompt("Première installation.\nE-mail de l'administrateur :") || '').trim();
+    if (!email) return;
+    const nom = (prompt("Nom de l'administrateur :", 'Administrateur') || '').trim();
+    if (!nom) return;
+    const pwd = prompt('Mot de passe (6 caractères minimum) :') || '';
+    if (pwd.length < 6) return alert('Le mot de passe doit contenir au moins 6 caractères.');
+    try {
+      await ensureFirebase();
+      const cred = await firebase.auth().createUserWithEmailAndPassword(email, pwd);
+      const db = firebase.firestore(), batch = db.batch();
+      batch.set(db.collection('config').doc('admin'), { uid: cred.user.uid, createdAt: new Date().toISOString() });
+      batch.set(db.collection('profils').doc(cred.user.uid), { username: email, nom, role: 'ADMIN', statut: 'actif', affect: [], eleves: [], createdAt: new Date().toISOString() });
+      await batch.commit();
+      const user = { id: cred.user.uid, username: email, nom, role: 'ADMIN', statut: 'actif', affect: [], eleves: [] };
+      cachePut(email, pwd, user);
+      cloudEnter(user);
+    } catch (err) {
+      try { await firebase.auth().signOut(); } catch (e2) {}
+      alert(/permission|insufficient/i.test((err && err.message) || '') ? "Impossible : un administrateur existe déjà (ou les règles Firestore ne sont pas à jour)." : 'Échec : ' + ((err && err.message) || ''));
+    }
+  });
+
+  // profils (administrateur) -> appState.users
+  function updateProfsPublic() { appState.profsPublic = appState.users.filter(u => u.role === 'PROF' && u.statut === 'actif').map(u => ({ id: u.id, nom: u.nom })); }
+  function attachProfiles() {
+    if (sync.unsubProf) sync.unsubProf();
+    sync.unsubProf = sync.db.collection('profils').onSnapshot(snap => {
+      const list = []; sync.profJ = {};
+      snap.forEach(d => { const data = d.data(); list.push({ id: d.id, ...data }); sync.profJ[d.id] = JSON.stringify(data); });
+      appState.users = list; sync.profReady = true;
+      updateProfsPublic();
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(appState)); } catch (e) {}
+      scheduleSync();
+      const ae = document.activeElement;
+      if (currentTab === 'USERS' && currentUser && !(ae && /^(INPUT|SELECT|TEXTAREA)$/.test(ae.tagName))) renderUsers();
+    }, err => syncStatus('error', err && err.message));
+  }
+  function pushProfiles() {
+    if (!isCloud() || !sync.profReady || !currentUser || currentUser.role !== 'ADMIN' || !sync.db) return;
+    const cur = {};
+    appState.users.forEach(u => { const c = JSON.parse(JSON.stringify(u)); delete c.pwd; delete c.id; cur[u.id] = c; });
+    if (!Object.keys(cur).length) return;
+    const batch = sync.db.batch(); let n = 0;
+    Object.keys(cur).forEach(id => { if (sync.profJ[id] !== JSON.stringify(cur[id])) { batch.set(sync.db.collection('profils').doc(id), cur[id]); n++; } });
+    Object.keys(sync.profJ).forEach(id => { if (!cur[id]) { batch.delete(sync.db.collection('profils').doc(id)); n++; } });
+    if (n) batch.commit().catch(err => syncStatus('error', err && err.message));
+  }
+
   async function syncStart() {
-    if (!sync.cfg) return;
+    if (isCloud() && !currentUser) return;
+    if (!isCloud() && !sync.cfg) return;
     try {
       syncStatus('busy', 'connexion…');
-      if (!window.firebase) { await loadScript(SDK + 'firebase-app-compat.js'); await loadScript(SDK + 'firebase-auth-compat.js'); await loadScript(SDK + 'firebase-firestore-compat.js'); }
-      if (!firebase.apps.length) firebase.initializeApp(sync.cfg.firebase);
-      await firebase.auth().signInWithEmailAndPassword(sync.cfg.email, sync.cfg.pwd);
+      await ensureFirebase();
+      if (isCloud()) { if (!firebase.auth().currentUser) throw new Error('Session expirée : reconnectez-vous.'); }
+      else await firebase.auth().signInWithEmailAndPassword(sync.cfg.email, sync.cfg.pwd);
       sync.db = firebase.firestore();
       if (sync.unsub) sync.unsub();
+      sync.first = true;
       sync.unsub = sync.db.collection('donnees').onSnapshot(snap => {
         sync.remote = new Map();
         snap.forEach(d => { const v = d.data(); sync.remote.set(d.id, { j: v.j, ts: v.ts || 0 }); });
+        if (isCloud() && sync.first) { sync.first = false; if (!Object.keys(sync.meta).length && sync.remote.size > 0 && !sync.mode) sync.mode = 'pull'; }
         runReconcile();
       }, err => syncStatus('error', err && err.message));
+      if (isCloud() && currentUser.role === 'ADMIN') attachProfiles();
     } catch (err) {
       sync.db = null;
       syncStatus(navigator.onLine ? 'error' : 'offline', err && err.message);
-      setTimeout(syncStart, 15000);   // nouvelle tentative automatique
+      clearTimeout(sync.retry);
+      sync.retry = setTimeout(syncStart, 15000);   // nouvelle tentative automatique
     }
   }
-  window.addEventListener('online', () => { if (sync.cfg && !sync.db) syncStart(); else if (sync.db) runReconcile(); });
-  window.addEventListener('offline', () => { if (sync.cfg) syncStatus('offline'); });
+  window.addEventListener('online', () => { if ((sync.cfg || (isCloud() && currentUser)) && !sync.db) syncStart(); else if (sync.db) runReconcile(); });
+  window.addEventListener('offline', () => { if (sync.cfg || (isCloud() && currentUser)) syncStatus('offline'); });
 
   function parseFirebaseCfg(txt) {
     const out = {}, re = /([A-Za-z]+)\s*["']?\s*:\s*["']([^"']+)["']/g; let m;
@@ -3522,7 +3738,7 @@ let pendingPhoto = null;
     localStorage.removeItem(SYNC_CFG_KEY); localStorage.removeItem(SYNC_META_KEY);
     syncStatus('off');
   });
-  if (sync.cfg) {
+  if (sync.cfg && !isCloud()) {
     document.getElementById('syncCfg').value = Object.entries(sync.cfg.firebase).map(([k, v]) => `${k}: "${v}"`).join(',\n');
     document.getElementById('syncEmail').value = sync.cfg.email || '';
     syncStatus(navigator.onLine ? 'busy' : 'offline');
@@ -3543,7 +3759,7 @@ let pendingPhoto = null;
     const sid = sessionStorage.getItem(SESSION_KEY);
     if (sid) restored = appState.users.find(u => u.id === sid) || null;
   } catch (e) {}
-  if (restored) enterApp(restored);
+  if (isCloud()) cloudInit(); else if (restored) enterApp(restored);
 })();
 </script>
 </body>
