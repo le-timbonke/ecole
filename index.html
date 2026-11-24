@@ -111,6 +111,9 @@
     label.chk input, .perm-chk { width: auto; }
     .role-pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; background: var(--primary-light); color: var(--primary-dark); }
     @media (max-width: 600px) { .user-info { display: none; } .bar-row { grid-template-columns: 1fr 1fr 48px; } }
+    /* ===== Police agrandie ===== */
+    html { font-size: 17.5px; }
+    @media print { html { font-size: 16px; } }
     /* ===== Amélioration mobile ===== */
     @media (max-width: 720px) {
       main { padding: .75rem; }
@@ -336,6 +339,7 @@
     <button type="button" class="nav-tab" id="tab_FINANCES">Scolarité &amp; paie</button>
     <button type="button" class="nav-tab" id="tab_PAIE">Paie du personnel</button>
     <button type="button" class="nav-tab" id="tab_RELEVE">Relevé de paiements</button>
+    <button type="button" class="nav-tab" id="tab_MSG">Messages aux parents</button>
     <button type="button" class="nav-tab" id="tab_ARCHIVES">Archives</button>
     <button type="button" class="nav-tab" id="tab_USERS">Comptes &amp; accès</button>
   </div>
@@ -745,6 +749,25 @@
     <div id="releveEmpty" class="card hidden">Aucun élève à afficher : aucun élève n'est rattaché à ce compte.</div>
     <div class="bulletin-box" id="relevePrintArea"><div id="releveContent"></div></div>
     <div id="releveSecond" style="margin-top: 1rem;"></div>
+  </section>
+  <!-- MESSAGES AUX PARENTS -->
+  <section id="sec_MSG" class="hidden">
+    <div class="card no-print">
+      <h2 style="font-size: 1.05rem; margin-bottom: 0.25rem;">Messages aux parents</h2>
+      <p style="font-size: 0.82rem; color: var(--muted); margin-bottom: 10px;">Chaque message est personnalisé : mois écoulés non payés (ou remerciement si tout est à jour), assiduité de l'élève et disponibilité des résultats. Envoi par WhatsApp depuis l'ordinateur (WhatsApp Web ou application de bureau), un clic pour toute la liste. Le navigateur ne peut pas envoyer seul : chaque message s'ouvre prêt à envoyer, il reste à valider « Envoyer » dans WhatsApp.</p>
+      <div class="form-grid">
+        <div><label for="msgClasse">Classe</label><select id="msgClasse"></select></div>
+        <div><label for="msgFiltre">Destinataires</label><select id="msgFiltre"><option value="all">Tous les parents</option><option value="due">Parents avec mois impayés</option><option value="ok">Parents à jour (remerciement)</option></select></div>
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button type="button" class="btn btn-primary" id="btnMsgAll">Envoyer à tous (un clic)</button>
+        <button type="button" class="btn btn-outline" id="btnMsgNext">Envoyer au suivant</button>
+        <button type="button" class="btn btn-outline" id="btnMsgCsv">Télécharger (Excel/SMS en masse)</button>
+        <button type="button" class="btn btn-outline" id="btnMsgCopy">Copier tous les messages</button>
+      </div>
+      <p id="msgInfo" style="font-size: 0.82rem; margin-top: 8px;"></p>
+    </div>
+    <div class="card"><div style="overflow-x:auto;"><table><thead><tr><th>Élève</th><th>Contact</th><th>Paiement</th><th>Message</th><th class="text-right">Envoi</th></tr></thead><tbody id="msgBody"></tbody></table></div></div>
   </section>
   <!-- ARCHIVES DES ANNÉES PRÉCÉDENTES -->
   <section id="sec_ARCHIVES" class="hidden">
@@ -2563,7 +2586,7 @@ return r('./index');})();
   }
 
   // ===== Accès, rôles et autorisations =====
-  const TAB_ORDER = ['DASH', 'NOTES', 'BULLETIN', 'RESULTS', 'PRESENCE', 'EDT', 'CARTES', 'CONFIG', 'FINANCES', 'PAIE', 'RELEVE', 'ARCHIVES', 'USERS'];
+  const TAB_ORDER = ['DASH', 'NOTES', 'BULLETIN', 'RESULTS', 'PRESENCE', 'EDT', 'CARTES', 'CONFIG', 'FINANCES', 'PAIE', 'RELEVE', 'MSG', 'ARCHIVES', 'USERS'];
   const TABS = {
     DASH:     { label: () => 'Tableau de bord', allowed: () => can('dashboard') },
     NOTES:    { label: () => can('notes_edit') ? 'Saisie des notes' : 'Consultation des notes', allowed: () => can('notes_view') || can('notes_edit') },
@@ -2575,6 +2598,7 @@ return r('./index');})();
     CONFIG:   { label: () => 'Matières & élèves', allowed: () => can('config') },
     FINANCES: { label: () => (can('fin_view') || can('fin_edit')) ? 'Scolarité & paie' : 'Scolarité', allowed: () => can('fin_view') || can('fin_edit') || can('fin_own') },
     PAIE:     { label: () => 'Paie du personnel', allowed: () => can('fin_view') || can('fin_edit') || can('config') },
+    MSG:      { label: () => 'Messages aux parents', allowed: () => can('fin_view') || can('fin_edit') || can('config') },
     RELEVE:   { label: () => 'Relevé de paiements', allowed: () => can('fin_view') || can('fin_edit') || can('fin_own') },
     ARCHIVES: { label: () => 'Archives', allowed: () => can('config') || can('fin_view') },
     USERS:    { label: () => 'Comptes & accès' + (can('users') && appState.users.some(u => u.statut === 'attente') ? ` (${appState.users.filter(u => u.statut === 'attente').length})` : ''), allowed: () => can('users') }
@@ -2717,7 +2741,7 @@ return r('./index');})();
 
   function updateContextBar() {
     const viewer = isViewerOnly();
-    const show = !!currentTab && currentTab !== 'USERS' && currentTab !== 'PRESENCE' && currentTab !== 'PAIE' && currentTab !== 'CARTES' && currentTab !== 'EDT' && currentTab !== 'RELEVE' && currentTab !== 'ARCHIVES' && !(viewer && currentTab === 'FINANCES');
+    const show = !!currentTab && currentTab !== 'USERS' && currentTab !== 'PRESENCE' && currentTab !== 'PAIE' && currentTab !== 'CARTES' && currentTab !== 'EDT' && currentTab !== 'RELEVE' && currentTab !== 'MSG' && currentTab !== 'ARCHIVES' && !(viewer && currentTab === 'FINANCES');
     document.getElementById('contextBar').classList.toggle('hidden', !show);
     document.getElementById('classeBox').classList.toggle('hidden', viewer);
     document.getElementById('cycleBox').classList.toggle('hidden', viewer);
@@ -4341,7 +4365,7 @@ return r('./index');})();
     ['Inscriptions et listes', [['CONFIG', '👤', 'Inscription et liste des élèves'], ['CONFIG', '📥', 'Importer des élèves'], ['CARTES', '🪪', 'Cartes scolaires']]],
     ['Matières, classes et emplois du temps', [['CONFIG', '⚙️', 'Matières et classes'], ['EDT', '🗓️', 'Emplois du temps'], ['PRESENCE', '✅', 'Contrôle de présence']]],
     ['Saisie des notes et bulletins', [['NOTES', '📝', 'Saisie des notes'], ['BULLETIN', '📄', 'Bulletins de notes'], ['RESULTS', '🏆', 'Résultats par classe']]],
-    ['Scolarité et paie', [['FINANCES', '💰', 'Scolarité et recouvrement'], ['RELEVE', '🧾', 'Relevé de scolarité'], ['PAIE', '👨‍🏫', 'Paie du personnel']]],
+    ['Scolarité et paie', [['FINANCES', '💰', 'Scolarité et recouvrement'], ['RELEVE', '🧾', 'Relevé de scolarité'], ['MSG', '💬', 'Messages aux parents'], ['PAIE', '👨‍🏫', 'Paie du personnel']]],
     ['Administration', [['USERS', '🔐', 'Comptes et accès'], ['ARCHIVES', '🗄️', 'Archives']]]
   ];
   function renderTiles() {
@@ -4376,14 +4400,97 @@ return r('./index');})();
       <div style="flex: 2; text-align: center;"><h2 style="font-size: 1.25rem; color: var(--primary-dark); margin-top: 2px;">${esc(schoolName())}</h2><p style="font-size: 0.8rem;">${esc(d.ville || 'Conakry')} • Année Scolaire ${START_YEAR} - ${START_YEAR + 1}</p><p style="font-size: 0.8rem;">Tél : ${esc(d.telephone || '—')} • E-mail : ${esc(d.email || '—')}</p></div>
       <div class="text-right" style="flex: 1;"><p style="font-weight: 800; font-size: 0.85rem;">REPUBLIQUE DE GUINEE</p><p style="font-weight: 800; font-size: 0.78rem;"><span style="color:#ce1126;">Travail</span>-<span style="color:#e6b800;">Justice</span>-<span style="color:#009460;">Solidarité</span></p>${rightHtml || ''}</div>${logo}</div>`;
   }
-  // Lien WhatsApp de relance vers les parents (numéro guinéen : indicatif 224 ajouté si absent)
-  function waLink(st, reste) {
+  // ===== Messages aux parents (WhatsApp depuis l'ordinateur) =====
+  function arrieres(st) {
+    const idx = moisIndexNow(), mois = [], noms = []; let reste = droitReste(st);
+    for (let i = 0; i <= idx; i++) { const r = moisReste(st, i); if (r > 0) { mois.push(i); noms.push(MOIS[i] + ' ' + moisYear(i)); reste += r; } }
+    return { mois, noms, reste, droit: droitReste(st) };
+  }
+  function assiduite(st) {
+    let a = 0, r = 0;
+    Object.values(appState.presence || {}).forEach(d => { const cl = d[st.classe] || {}; Object.values(cl).forEach(sl => { const v = sl[st.id]; if (v === 'A') a++; else if (v === 'R') r++; }); });
+    const h = parseFloat(st.absences) || 0;
+    const niv = (h === 0 && r <= 1) ? 'très bonne' : (h <= 4 && r <= 3) ? 'bonne' : h <= 10 ? 'moyenne' : 'insuffisante';
+    return { a, r, h, niv };
+  }
+  function resultInfo(st) {
+    const cyc = classCycle(st.classe) || 'COLLEGE', bar = cyc === 'PRIMAIRE' ? 10 : 20;
+    const per = (PERIODS[cyc] || []).filter(p => hasPeriodData(st, p.id));
+    if (!per.length) return null;
+    const p = per[per.length - 1], r2 = v => parseFloat(v.toFixed(2));
+    const mates = appState.students.filter(s => s.classe === st.classe);
+    const my = r2(computeStudentBulletin(st, cyc, p.id).moyGen);
+    const rang = 1 + mates.filter(s => r2(computeStudentBulletin(s, cyc, p.id).moyGen) > my).length;
+    return { label: p.label, moy: my, bar, rang, eff: mates.length, mention: getMention(my, cyc) };
+  }
+  function buildParentMessage(st) {
+    const ar = arrieres(st), as = assiduite(st), rs = resultInfo(st);
+    const L = [`Bonjour, ${schoolName()} vous écrit au sujet de ${st.nom} (${st.classe}).`, ''];
+    if (ar.reste === 0) L.push('Scolarité : vos paiements sont à jour pour les mois écoulés. Merci pour votre confiance et votre ponctualité.');
+    else L.push(`Scolarité : ${ar.mois.length ? ar.mois.length + ' mois écoulé(s) non payé(s) (' + ar.noms.join(', ') + ')' : 'aucune mensualité en retard'}${ar.droit > 0 ? (ar.mois.length ? ' et ' : ' mais ') + droitLabel(st).toLowerCase() + ' restant' : ''}. Montant à régler : ${formatGNF(ar.reste)}. Merci de régulariser.`);
+    L.push(`Assiduité : ${as.niv} (${as.h} h d'absence${as.r ? ', ' + as.r + ' retard(s)' : ''}).`);
+    L.push(rs ? `Résultats : disponibles pour le ${rs.label} — moyenne ${fmt(rs.moy)}/${rs.bar}, rang ${rs.rang}/${rs.eff}, mention ${rs.mention}. Le bulletin est disponible à l'établissement.` : "Résultats : pas encore disponibles pour cette période. Nous vous préviendrons dès leur publication.");
+    L.push('', 'Cordialement, la Direction.');
+    return L.join('\n');
+  }
+  function thanksMessage(st, pays) {
+    const total = pays.reduce((a, p) => a + p.montant, 0), ar = arrieres(st);
+    const items = pays.map(p => p.type === 'DROIT' ? droitLabel(st).toLowerCase() : MOIS[p.mois] + ' ' + moisYear(p.mois));
+    return `Bonjour, ${schoolName()} vous remercie : nous confirmons la réception de ${formatGNF(total)} pour ${st.nom} (${st.classe}) — ${[...new Set(items)].join(', ')}${pays[0].recu ? ' (reçu n° ' + pays[0].recu + ')' : ''}.\n` +
+      (ar.reste === 0 ? 'Vos paiements sont à jour pour les mois écoulés. Merci pour votre confiance !' : `Il reste ${formatGNF(ar.reste)} à régler pour les mois écoulés (${ar.noms.join(', ') || 'frais d\'inscription'}). Merci d'avance.`);
+  }
+  function waUrl(st, msg) {
     let d = String(st.contact || '').replace(/[^\d]/g, '');
     if (!d) return '';
     if (d.length === 9) d = '224' + d;
-    const msg = `Bonjour, l'établissement ${schoolName()} vous informe qu'il reste ${formatGNF(reste)} de frais de scolarité à régler pour ${st.nom} (${st.classe}). Merci de régulariser. Cordialement.`;
     return 'https://wa.me/' + d + '?text=' + encodeURIComponent(msg);
   }
+  function waLink(st) { return waUrl(st, buildParentMessage(st)); }
+  let msgQueue = 0;
+  function msgList() {
+    const cl = document.getElementById('msgClasse').value, f = document.getElementById('msgFiltre').value;
+    let l = (cl ? appState.students.filter(x => x.classe === cl) : appState.students).slice().sort((a, b) => String(a.classe).localeCompare(String(b.classe)) || String(a.nom).localeCompare(String(b.nom)));
+    if (f === 'due') l = l.filter(x => arrieres(x).reste > 0);
+    if (f === 'ok') l = l.filter(x => arrieres(x).reste === 0);
+    return l;
+  }
+  function renderMsg() {
+    const sel = document.getElementById('msgClasse'), keep = sel.value, cl = [...new Set(appState.students.map(x => x.classe))];
+    sel.innerHTML = '<option value="">Toutes les classes</option>' + cl.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+    sel.value = cl.includes(keep) ? keep : '';
+    const list = msgList(), withTel = list.filter(x => waLink(x));
+    if (msgQueue > withTel.length) msgQueue = 0;
+    document.getElementById('msgInfo').textContent = `${list.length} élève(s) • ${withTel.length} parent(s) avec un numéro valide${list.length - withTel.length ? ' • ' + (list.length - withTel.length) + ' sans contact' : ''} • Mois en cours : ${MOIS[Math.max(0, moisIndexNow())]}.`;
+    document.getElementById('btnMsgNext').textContent = withTel.length ? `Envoyer au suivant (${Math.min(msgQueue + 1, withTel.length)}/${withTel.length})` : 'Envoyer au suivant';
+    document.getElementById('msgBody').innerHTML = list.map(st => {
+      const ar = arrieres(st), url = waLink(st);
+      return `<tr><td><strong>${esc(st.nom)}</strong><br><small style="color:var(--muted)">${esc(st.classe)} • ${esc(st.matricule)}</small></td><td>${esc(st.contact || '—')}</td>
+        <td><span class="badge ${ar.reste === 0 ? 'badge-ok' : 'badge-warn'}">${ar.reste === 0 ? 'À jour' : ar.mois.length + ' mois • ' + formatGNF(ar.reste)}</span></td>
+        <td style="white-space:pre-wrap; font-size:0.78rem; max-width:420px;">${esc(buildParentMessage(st))}</td>
+        <td class="text-right">${url ? `<a href="${url}" target="_blank" rel="noopener" class="btn btn-primary" style="padding:4px 10px; font-size:0.75rem; text-decoration:none; display:inline-block;">WhatsApp</a>` : '<small style="color:var(--danger)">Pas de numéro</small>'}</td></tr>`;
+    }).join('') || '<tr><td colspan="5" style="color:var(--muted);">Aucun élève.</td></tr>';
+  }
+  const secMsg = document.getElementById('sec_MSG');
+  secMsg.addEventListener('change', () => { msgQueue = 0; renderMsg(); });
+  secMsg.addEventListener('click', (e) => {
+    const id = e.target.id; if (!id || id.indexOf('btnMsg') !== 0) return;
+    const list = msgList(), withTel = list.filter(x => waLink(x));
+    if (id === 'btnMsgAll') {
+      if (!withTel.length) return alert('Aucun parent avec un numéro valide.');
+      if (!confirm(`Ouvrir ${withTel.length} conversation(s) WhatsApp ? Si le navigateur bloque les fenêtres, autorisez les pop-up pour cette page, puis recommencez (ou utilisez « Envoyer au suivant »).`)) return;
+      withTel.forEach(st => window.open(waLink(st), '_blank'));
+    } else if (id === 'btnMsgNext') {
+      if (!withTel.length) return alert('Aucun parent avec un numéro valide.');
+      window.open(waLink(withTel[msgQueue % withTel.length]), '_blank');
+      msgQueue = (msgQueue + 1) % withTel.length; renderMsg();
+    } else if (id === 'btnMsgCsv') {
+      const q = v => '"' + String(v).replace(/"/g, '""') + '"';
+      downloadBlob('Matricule;Eleve;Classe;Telephone;Message\n' + list.map(st => [st.matricule, st.nom, st.classe, st.contact || '', buildParentMessage(st)].map(q).join(';')).join('\n'), 'messages_parents_' + new Date().toLocaleDateString('sv-SE') + '.csv', 'text/csv;charset=utf-8');
+    } else if (id === 'btnMsgCopy') {
+      const txt = list.map(st => `${st.nom} — ${st.contact || 'sans numéro'}\n${buildParentMessage(st)}`).join('\n\n----------\n\n');
+      (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => showAlert('Messages copiés.')).catch(() => alert('Copie impossible : utilisez le téléchargement.'));
+    }
+  });
   // Reçu de paiement imprimable (une fenêtre dédiée, un reçu par opération)
   function printReceipt(st, recu) {
     const pays = (st.paiements || []).filter(p => p.recu === recu);
@@ -4440,6 +4547,7 @@ return r('./index');})();
     if (currentTab === 'CONFIG') renderConfig();
     if (currentTab === 'FINANCES') renderFinances();
     if (currentTab === 'RELEVE') renderReleve();
+    if (currentTab === 'MSG') renderMsg();
     if (currentTab === 'PAIE') renderPaie();
     if (currentTab === 'ARCHIVES') renderArchives();
   }
@@ -5184,7 +5292,10 @@ let pendingPhoto = null;
     saveState(false);
     showAlert('Paiement de ' + formatGNF(montant) + ' enregistré (reçu ' + recu + ').');
     renderFinances();
+    const paysRecu = (st.paiements || []).filter(p => p.recu === recu);
     if (confirm('Paiement enregistré. Imprimer le reçu ' + recu + ' ?')) printReceipt(st, recu);
+    const turl = waUrl(st, thanksMessage(st, paysRecu));
+    if (turl && confirm('Envoyer un message de remerciement aux parents par WhatsApp ?')) window.open(turl, '_blank');
   });
 
   document.getElementById('sec_FINANCES').addEventListener('click', (e) => {
