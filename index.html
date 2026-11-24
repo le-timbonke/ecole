@@ -3,6 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#0b5d4b" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="ERP Scolaire" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <link rel="icon" type="image/png" href="icon-192.png" />
   <title>ERP Scolaire Pro - Classes, périodes, accès par rôle & Tableau de bord</title>
   <style>
     :root {
@@ -268,6 +275,8 @@
       </form>
       <p class="login-switch">Pas encore de compte ? <a href="#" id="linkToRegister">Créer un compte</a></p>
       <p class="login-switch hidden" id="firstInstallP" style="margin-top:6px;"><a href="#" id="linkFirstInstall">Première installation : créer l'administrateur</a></p>
+      <button type="button" class="btn btn-outline hidden" id="btnInstallLogin" style="width:100%; margin-top:10px;">📲 Installer l'application</button>
+      <p class="login-switch hidden" id="iosInstallHint" style="font-size:0.78rem;">Sur iPhone / iPad : touchez <strong>Partager</strong> puis <strong>Sur l'écran d'accueil</strong>.</p>
       <details class="demo-accounts" id="demoAccounts">
         <summary>Comptes de démonstration</summary>
         <table>
@@ -321,6 +330,7 @@
     </div>
     <div class="user-box">
       <div class="user-info"><strong id="userName"></strong><span id="userRole"></span></div>
+      <button type="button" class="btn btn-light hidden" id="btnInstallApp">📲 Installer</button>
       <button type="button" class="btn btn-light" id="btnLogout">Déconnexion</button>
     </div>
   </div>
@@ -661,7 +671,7 @@
           <div><label for="recouvClasse">Classe</label><select id="recouvClasse"></select></div>
           <div><label for="recouvStatut">Afficher</label><select id="recouvStatut"><option value="all">Tous les élèves</option><option value="due">Impayés seulement</option></select></div>
         </div>
-        <button type="button" class="btn btn-primary" id="btnPrintRecouv">Imprimer la liste de recouvrement</button>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;"><button type="button" class="btn btn-primary" id="btnRecouvWaAll">Message à tous les parents (WhatsApp)</button><button type="button" class="btn btn-primary" id="btnPrintRecouv">Imprimer la liste de recouvrement</button></div>
       </div>
       <div id="recouvArea"></div>
     </div>
@@ -4402,8 +4412,8 @@ return r('./index');})();
   }
   // ===== Messages aux parents (WhatsApp depuis l'ordinateur) =====
   function arrieres(st) {
-    const idx = moisIndexNow(), mois = [], noms = []; let reste = droitReste(st);
-    for (let i = 0; i <= idx; i++) { const r = moisReste(st, i); if (r > 0) { mois.push(i); noms.push(MOIS[i] + ' ' + moisYear(i)); reste += r; } }
+    const idx = moisIndexNow(), mois = [], noms = []; let reste = 0;
+    for (let i = 0; i < idx; i++) { const r = moisReste(st, i); if (r > 0) { mois.push(i); noms.push(MOIS[i] + ' ' + moisYear(i)); reste += r; } }
     return { mois, noms, reste, droit: droitReste(st) };
   }
   function assiduite(st) {
@@ -4426,8 +4436,8 @@ return r('./index');})();
   function buildParentMessage(st) {
     const ar = arrieres(st), as = assiduite(st), rs = resultInfo(st);
     const L = [`Bonjour, ${schoolName()} vous écrit au sujet de ${st.nom} (${st.classe}).`, ''];
-    if (ar.reste === 0) L.push('Scolarité : vos paiements sont à jour pour les mois écoulés. Merci pour votre confiance et votre ponctualité.');
-    else L.push(`Scolarité : ${ar.mois.length ? ar.mois.length + ' mois écoulé(s) non payé(s) (' + ar.noms.join(', ') + ')' : 'aucune mensualité en retard'}${ar.droit > 0 ? (ar.mois.length ? ' et ' : ' mais ') + droitLabel(st).toLowerCase() + ' restant' : ''}. Montant à régler : ${formatGNF(ar.reste)}. Merci de régulariser.`);
+    if (ar.reste === 0) L.push('Scolarité : vos paiements sont à jour pour les mois antérieurs au mois en cours. Merci pour votre confiance et votre ponctualité.');
+    else L.push(`Scolarité : ${ar.mois.length} mois antérieur(s) non payé(s) (${ar.noms.join(', ')}). Montant à régler : ${formatGNF(ar.reste)}. Merci de régulariser.`);
     L.push(`Assiduité : ${as.niv} (${as.h} h d'absence${as.r ? ', ' + as.r + ' retard(s)' : ''}).`);
     L.push(rs ? `Résultats : disponibles pour le ${rs.label} — moyenne ${fmt(rs.moy)}/${rs.bar}, rang ${rs.rang}/${rs.eff}, mention ${rs.mention}. Le bulletin est disponible à l'établissement.` : "Résultats : pas encore disponibles pour cette période. Nous vous préviendrons dès leur publication.");
     L.push('', 'Cordialement, la Direction.');
@@ -4437,7 +4447,7 @@ return r('./index');})();
     const total = pays.reduce((a, p) => a + p.montant, 0), ar = arrieres(st);
     const items = pays.map(p => p.type === 'DROIT' ? droitLabel(st).toLowerCase() : MOIS[p.mois] + ' ' + moisYear(p.mois));
     return `Bonjour, ${schoolName()} vous remercie : nous confirmons la réception de ${formatGNF(total)} pour ${st.nom} (${st.classe}) — ${[...new Set(items)].join(', ')}${pays[0].recu ? ' (reçu n° ' + pays[0].recu + ')' : ''}.\n` +
-      (ar.reste === 0 ? 'Vos paiements sont à jour pour les mois écoulés. Merci pour votre confiance !' : `Il reste ${formatGNF(ar.reste)} à régler pour les mois écoulés (${ar.noms.join(', ') || 'frais d\'inscription'}). Merci d'avance.`);
+      (ar.reste === 0 ? 'Vos paiements sont à jour pour les mois écoulés. Merci pour votre confiance !' : `Il reste ${formatGNF(ar.reste)} à régler pour les mois écoulés (${ar.noms.join(', ')}). Merci d'avance.`);
   }
   function waUrl(st, msg) {
     let d = String(st.contact || '').replace(/[^\d]/g, '');
@@ -4460,7 +4470,7 @@ return r('./index');})();
     sel.value = cl.includes(keep) ? keep : '';
     const list = msgList(), withTel = list.filter(x => waLink(x));
     if (msgQueue > withTel.length) msgQueue = 0;
-    document.getElementById('msgInfo').textContent = `${list.length} élève(s) • ${withTel.length} parent(s) avec un numéro valide${list.length - withTel.length ? ' • ' + (list.length - withTel.length) + ' sans contact' : ''} • Mois en cours : ${MOIS[Math.max(0, moisIndexNow())]}.`;
+    document.getElementById('msgInfo').textContent = `${list.length} élève(s) • ${withTel.length} parent(s) avec un numéro valide${list.length - withTel.length ? ' • ' + (list.length - withTel.length) + ' sans contact' : ''} • Mois en cours (non compté) : ${MOIS[Math.max(0, moisIndexNow())]}.`;
     document.getElementById('btnMsgNext').textContent = withTel.length ? `Envoyer au suivant (${Math.min(msgQueue + 1, withTel.length)}/${withTel.length})` : 'Envoyer au suivant';
     document.getElementById('msgBody').innerHTML = list.map(st => {
       const ar = arrieres(st), url = waLink(st);
@@ -4523,7 +4533,7 @@ return r('./index');})();
     let tD = 0, tP = 0, tR = 0;
     const full = st => [st.prenom, st.nomFamille].filter(Boolean).join(' ') || st.nom;
     const body = list.map((st, i) => { const du = feeDue(st), pa = feePaid(st), re = resteTotal(st); tD += du; tP += pa; tR += re;
-      return `<tr><td class="text-center">${i + 1}</td><td>${esc(st.matricule)}</td><td><strong>${esc(full(st))}</strong></td><td>${esc(st.classe)}</td><td class="text-right">${formatGNF(du)}</td><td class="text-right">${formatGNF(pa)}</td><td class="text-right">${formatGNF(re)}</td><td class="text-center">${du ? Math.round(pa / du * 100) : 0} %</td><td class="text-center">${re === 0 ? 'Soldé' : 'Reste à payer'}</td><td class="text-center no-print">${re > 0 && waLink(st, re) ? `<a href="${waLink(st, re)}" target="_blank" rel="noopener" class="btn btn-outline" style="padding:3px 8px; font-size:0.72rem; text-decoration:none;">WhatsApp</a>` : '—'}</td></tr>`; }).join('');
+      return `<tr><td class="text-center">${i + 1}</td><td>${esc(st.matricule)}</td><td><strong>${esc(full(st))}</strong></td><td>${esc(st.classe)}</td><td class="text-right">${formatGNF(du)}</td><td class="text-right">${formatGNF(pa)}</td><td class="text-right">${formatGNF(re)}</td><td class="text-center">${du ? Math.round(pa / du * 100) : 0} %</td><td class="text-center">${re === 0 ? 'Soldé' : 'Reste à payer'}</td><td class="text-center no-print">${waLink(st) ? `<a href="${waLink(st)}" target="_blank" rel="noopener" class="btn btn-outline" style="padding:3px 8px; font-size:0.72rem; text-decoration:none;">WhatsApp</a>` : '—'}</td></tr>`; }).join('');
     const dir = appState.direction || {}, sp = '<div style="height: 34px;"></div>';
     document.getElementById('recouvArea').innerHTML = docHeaderHtml(`<p style="font-size:0.85rem; margin-top:0.7rem;">Classe : <strong>${esc(sel.value || 'Toutes')}</strong></p>`) +
       `<div class="bulletin-title" style="text-align:center; text-transform:uppercase; padding:4px; margin-bottom:0.6rem;">Liste de recouvrement des frais de scolarité${onlyDue ? ' — impayés' : ''}</div>
@@ -4534,6 +4544,15 @@ return r('./index');})();
   }
   document.getElementById('recouvCard').addEventListener('change', renderRecouv);
   document.getElementById('btnPrintRecouv').addEventListener('click', () => printPaie('print-recouv'));
+  document.getElementById('btnRecouvWaAll').addEventListener('click', () => {
+    const cl = document.getElementById('recouvClasse').value, onlyDue = document.getElementById('recouvStatut').value === 'due';
+    let l = cl ? appState.students.filter(x => x.classe === cl) : appState.students;
+    if (onlyDue) l = l.filter(x => arrieres(x).reste > 0);
+    l = l.filter(x => waLink(x));
+    if (!l.length) return alert('Aucun parent avec un numéro valide pour cette sélection.');
+    if (!confirm(`Envoyer un message à ${l.length} parent(s) ? Une conversation WhatsApp s'ouvre par parent (autorisez les pop-up si le navigateur les bloque).`)) return;
+    l.forEach(x => window.open(waLink(x), '_blank'));
+  });
 
   function renderAll() {
     if (currentTab === 'DASH') renderDash();
@@ -5648,6 +5667,22 @@ let pendingPhoto = null;
     syncStart();
   }
 
+
+  // ===== Installation de l'application (PWA) =====
+  (function () {
+    let deferred = null;
+    const btns = ['btnInstallApp', 'btnInstallLogin'].map(id => document.getElementById(id));
+    const standalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+    const show = v => btns.forEach(b => b && b.classList.toggle('hidden', !v));
+    window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferred = e; if (!standalone()) show(true); });
+    window.addEventListener('appinstalled', () => { deferred = null; show(false); showAlert('Application installée.'); });
+    btns.forEach(b => b && b.addEventListener('click', async () => {
+      if (!deferred) return;
+      deferred.prompt(); await deferred.userChoice.catch(() => {}); deferred = null; show(false);
+    }));
+    if (/iphone|ipad|ipod/i.test(navigator.userAgent) && !standalone()) document.getElementById('iosInstallHint').classList.remove('hidden');
+    if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => {});
+  })();
   function initUI() {
     document.getElementById('cycleSelect').value = appState.cycle;
     populateClassSelect();
