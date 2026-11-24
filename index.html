@@ -487,6 +487,16 @@
       </div>
       <p id="syncMsg" style="font-size: 0.82rem; margin-top: 8px;"></p>
     </div>
+    <div class="card no-print" id="importCard">
+      <h2 style="font-size: 1.05rem; margin-bottom: 0.25rem;">Importer des élèves (Excel ou CSV)</h2>
+      <p style="font-size: 0.82rem; color: var(--muted); margin-bottom: 10px;">Colonnes reconnues (première ligne = titres) : Matricule, Prénom, Nom, Sexe, Classe, Date de naissance, Lieu de naissance, Père, Mère, Adresse, Contact. Le matricule est obligatoire : un matricule déjà existant met à jour la fiche, sans toucher aux notes ni aux paiements. La classe doit exister.</p>
+      <input type="file" id="impFile" accept=".xlsx,.xls,.csv" class="hidden" />
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button type="button" class="btn btn-primary" id="btnImpChoose">Choisir un fichier Excel / CSV</button>
+        <button type="button" class="btn btn-outline" id="btnImpModel">Télécharger le modèle</button>
+      </div>
+      <p id="impMsg" style="font-size: 0.82rem; margin-top: 8px;"></p>
+    </div>
     <div class="card no-print" id="backupCard">
       <h2 style="font-size: 1.05rem; margin-bottom: 0.25rem;">Sauvegarde des données</h2>
       <p style="font-size: 0.82rem; color: var(--muted); margin-bottom: 10px;">Téléchargez régulièrement une sauvegarde (notes, élèves, paiements, paie, comptes, photos…). Gardez le fichier en lieu sûr : il permet de tout retrouver sur un autre ordinateur ou après un effacement.</p>
@@ -4066,6 +4076,114 @@ return r('./index');})();
   }
   document.getElementById('cardClasse').addEventListener('change', renderCartes);
   document.getElementById('btnPrintCards').addEventListener('click', () => window.print());
+
+  // ===== Import d'élèves (Excel / CSV) =====
+  const IMP_KEYS = { matricule: ['matricule', 'mat'], prenom: ['prenom', 'prenoms'], nom: ['nom', 'nomdefamille', 'nomfamille'], sexe: ['sexe', 'genre'], classe: ['classe'], naissance: ['datedenaissance', 'datenaissance', 'naissance'], lieu: ['lieudenaissance', 'lieunaissance', 'lieu'], pere: ['pere', 'nomdupere'], mere: ['mere', 'nomdelamere'], adresse: ['adresse'], contact: ['contact', 'contactparents', 'contactdesparents', 'telephone', 'tel'] };
+  const impNorm = x => String(x == null ? '' : x).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  function parseCSV(txt) {
+    txt = txt.replace(/^\ufeff/, '');
+    const first = txt.split(/\r?\n/)[0] || '';
+    const sep = [';', '\t', ','].map(c => [c, first.split(c).length]).sort((a, b) => b[1] - a[1])[0][0];
+    const rows = []; let row = [], cur = '', q = false;
+    for (let i = 0; i < txt.length; i++) {
+      const ch = txt[i];
+      if (q) { if (ch === '"' && txt[i + 1] === '"') { cur += '"'; i++; } else if (ch === '"') q = false; else cur += ch; }
+      else if (ch === '"') q = true;
+      else if (ch === sep) { row.push(cur); cur = ''; }
+      else if (ch === '\n' || ch === '\r') { if (ch === '\r' && txt[i + 1] === '\n') i++; row.push(cur); rows.push(row); row = []; cur = ''; }
+      else cur += ch;
+    }
+    if (cur || row.length) { row.push(cur); rows.push(row); }
+    return rows;
+  }
+  const impDate = v => { v = String(v || '').trim(); const m = v.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/); return m ? `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}` : v; };
+  function importRows(rows) {
+    const msg = document.getElementById('impMsg');
+    const hi = rows.findIndex(r => r.some(c => impNorm(c) === 'matricule'));
+    if (hi < 0) { msg.innerHTML = '<span style="color:var(--danger);">Colonne « Matricule » introuvable dans la première ligne.</span>'; return; }
+    const col = {}; rows[hi].forEach((h, i) => { const n = impNorm(h); Object.keys(IMP_KEYS).forEach(k => { if (col[k] === undefined && IMP_KEYS[k].includes(n)) col[k] = i; }); });
+    let added = 0, updated = 0; const skipped = [];
+    rows.slice(hi + 1).forEach((r, idx) => {
+      const g = k => (col[k] === undefined ? '' : String(r[col[k]] == null ? '' : r[col[k]]).trim());
+      if (!r.some(c => String(c).trim())) return;
+      const line = hi + idx + 2, mat = g('matricule');
+      if (!mat) return skipped.push(`ligne ${line} : matricule vide`);
+      const cname = g('classe'), cl = cname ? appState.classes.find(c => impNorm(c.nom) === impNorm(cname)) : null;
+      if (cname && !cl) return skipped.push(`ligne ${line} : classe « ${cname} » inconnue`);
+      const sx = g('sexe') ? (/^f/i.test(g('sexe')) ? 'F' : 'M') : '';
+      const ex = appState.students.find(x => String(x.matricule).toLowerCase() === mat.toLowerCase());
+      const data = { prenom: g('prenom'), nomFamille: g('nom'), sexe: sx, naissance: impDate(g('naissance')), lieuNaissance: g('lieu'), pere: g('pere'), mere: g('mere'), adresse: g('adresse'), contact: g('contact') };
+      if (ex) {
+        Object.keys(data).forEach(k => { if (data[k]) ex[k] = data[k]; });
+        if (cl) ex.classe = cl.nom;
+        ex.nom = ((ex.nomFamille || '') + ' ' + (ex.prenom || '')).trim();
+        updated++;
+      } else {
+        if (!data.prenom || !data.nomFamille) return skipped.push(`ligne ${line} : prénom ou nom manquant`);
+        appState.students.push({ id: newStudentId(), matricule: mat, classe: cl ? cl.nom : (appState.classe || appState.classes[0].nom), ...data, sexe: sx || 'M', nom: data.nomFamille + ' ' + data.prenom, typeInsc: 'INSCRIPTION', paiements: [], absences: 0, notes: {} });
+        added++;
+      }
+    });
+    saveState(false); renderConfig();
+    msg.innerHTML = `<strong>${added}</strong> élève(s) ajouté(s), <strong>${updated}</strong> mis à jour.` + (skipped.length ? ` <span style="color:var(--danger);">${skipped.length} ligne(s) ignorée(s) : ${esc(skipped.slice(0, 6).join(' ; '))}${skipped.length > 6 ? '…' : ''}</span>` : '');
+  }
+  document.getElementById('btnImpChoose').addEventListener('click', () => document.getElementById('impFile').click());
+  document.getElementById('impFile').addEventListener('change', async (ev) => {
+    const f = ev.target.files && ev.target.files[0]; if (!f) return;
+    const msg = document.getElementById('impMsg'); msg.textContent = 'Lecture du fichier…';
+    try {
+      if (/\.csv$/i.test(f.name)) importRows(parseCSV(await f.text()));
+      else {
+        if (!window.XLSX) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+        const wb = XLSX.read(await f.arrayBuffer(), { type: 'array' });
+        importRows(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false, defval: '' }));
+      }
+    } catch (err) { msg.innerHTML = '<span style="color:var(--danger);">Lecture impossible. Pour un fichier Excel, internet est nécessaire ; sinon enregistrez-le au format CSV dans Excel (Enregistrer sous → CSV) puis réimportez-le.</span>'; }
+    ev.target.value = '';
+  });
+  function downloadBlob(content, name, type) {
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + content], { type }));
+    a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+  }
+  document.getElementById('btnImpModel').addEventListener('click', () => {
+    const cl = (appState.classes[0] || {}).nom || '7ème A';
+    downloadBlob(`Matricule;Prénom;Nom;Sexe;Classe;Date de naissance;Lieu de naissance;Père;Mère;Adresse;Contact\nAM26000001;Aminata;Diallo;F;${cl};15/03/2013;Conakry;Mamadou Diallo;Fatoumata Bah;Hamdallaye;+224 620 00 00 00\n`, 'modele_import_eleves.csv', 'text/csv;charset=utf-8');
+  });
+
+  // ===== Export des documents : PDF, Word, Excel =====
+  const EXPORTS = [
+    ['btnPrintBulletin', ['bulletinPrintArea', 'bulletinSecond'], 'Bulletin'], ['btnPrintResults', ['sec_RESULTS'], 'Resultats'],
+    ['btnPrintReleve', ['relevePrintArea', 'releveSecond'], 'Releve'], ['btnPrintEtat', ['paieEtat', 'paieSlip'], 'Paie'],
+    ['btnPrintPres', ['sec_PRESENCE'], 'Presence'], ['btnPrintCards', ['cardsGrid'], 'Cartes'], ['btnPrintEdt', ['sec_EDT'], 'EmploiDuTemps']
+  ];
+  function exportDoc(ids, base, kind) {
+    const box = document.createElement('div');
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el || el.classList.contains('hidden') || !el.innerHTML.trim()) return;
+      const c = el.cloneNode(true);
+      c.querySelectorAll('.no-print,.res-noprint,button,.hidden,script').forEach(x => x.remove());
+      c.querySelectorAll('.print-only').forEach(x => x.classList.remove('print-only'));
+      c.querySelectorAll('input,select,textarea').forEach(x => {
+        const sp = document.createElement('span');
+        sp.textContent = x.type === 'checkbox' ? (x.checked ? '✓' : '') : x.tagName === 'SELECT' ? ((x.options[x.selectedIndex] || {}).text || '') : x.value;
+        x.replaceWith(sp);
+      });
+      box.appendChild(c); box.appendChild(document.createElement('br'));
+    });
+    if (!box.innerHTML.trim()) return alert('Rien à exporter : affichez d\'abord le document.');
+    const ns = kind === 'xls' ? 'xmlns:x="urn:schemas-microsoft-com:office:excel"' : 'xmlns:w="urn:schemas-microsoft-com:office:word"';
+    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" ${ns} xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;font-size:10pt}table{border-collapse:collapse;width:100%}th,td{border:1px solid #444;padding:3px 5px;vertical-align:top}th{background:#e6f4ef}h2,h3{margin:4px 0}.text-center{text-align:center}.text-right{text-align:right}</style></head><body>${box.innerHTML}</body></html>`;
+    const name = `${base}_${(appState.classe || 'ecole').replace(/[^\w-]+/g, '_')}`;
+    downloadBlob(html, name + '.' + (kind === 'xls' ? 'xls' : 'doc'), kind === 'xls' ? 'application/vnd.ms-excel;charset=utf-8' : 'application/msword;charset=utf-8');
+  }
+  EXPORTS.forEach(([btnId, ids, base]) => {
+    const b = document.getElementById(btnId); if (!b) return;
+    const mk = (label, fn) => { const x = document.createElement('button'); x.type = 'button'; x.className = 'btn btn-outline no-print'; x.style.marginLeft = '6px'; x.textContent = label; x.addEventListener('click', fn); return x; };
+    const g = document.createElement('span'); g.className = 'no-print'; g.style.cssText = 'display:inline-flex; gap:0;';
+    g.append(mk('PDF', () => b.click()), mk('Word', () => exportDoc(ids, base, 'doc')), mk('Excel', () => exportDoc(ids, base, 'xls')));
+    b.after(g);
+  });
 
   function renderAll() {
     if (currentTab === 'DASH') renderDash();
