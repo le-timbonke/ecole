@@ -400,14 +400,14 @@
     <div class="bulletin-box" id="bulletinPrintArea">
       <div class="bulletin-header" style="align-items: flex-start; gap: 8px;">
         <div style="flex: 1; font-size: 0.8rem; font-weight: 700; line-height: 1.35;">
-          <div>MEPU-A</div>
+          <div><span class="mepu-txt">MEPU-A</span></div>
           <div>IRE : <span id="bIre"></span></div>
           <div>DCE : <span id="bDce"></span></div>
           <div>DSEE : <span id="bDsee"></span></div>
         </div>
         <div style="flex: 2; text-align: center;">
           <h2 style="font-size: 1.25rem; color: var(--primary-dark); margin-top: 2px;"><span class="school-name">GROUPE SCOLAIRE EXCELLENCE</span></h2>
-          <p style="font-size: 0.8rem;">Conakry • Année Scolaire 2026 - 2027</p>
+          <p style="font-size: 0.8rem;"><span class="ville-txt">Conakry</span> • Année Scolaire 2026 - 2027</p>
           <p style="font-size: 0.8rem;">Tél : <span id="bTel"></span> • E-mail : <span id="bMail"></span></p>
         </div>
         <div class="text-right" style="flex: 1;">
@@ -519,6 +519,8 @@
         <div><label for="dirNom">Nom de l'établissement</label><input type="text" id="dirNom" data-action="direction" data-key="nom" placeholder="Groupe Scolaire Excellence" /></div>
         <div><label for="dirValide">Validité des cartes (jusqu'au)</label><input type="date" id="dirValide" data-action="direction" data-key="validite" /></div>
         <div style="grid-column: 1 / -1;"><label for="dirReglement">Règlement au verso de la carte (une règle par ligne)</label><textarea id="dirReglement" rows="4" data-action="direction" data-key="reglement" style="width:100%;" placeholder="Laissez vide pour le règlement par défaut"></textarea></div>
+        <div><label for="dirMepu">Sigle (ex. MEPU-A)</label><input type="text" id="dirMepu" data-action="direction" data-key="mepu" placeholder="MEPU-A" /></div>
+        <div><label for="dirVille">Ville</label><input type="text" id="dirVille" data-action="direction" data-key="ville" placeholder="Conakry" /></div>
         <div><label for="dirAdresse">Adresse de l'établissement</label><input type="text" id="dirAdresse" data-action="direction" data-key="adresse" placeholder="Quartier, commune" /></div>
         <div><label for="dirLogo">Logo (bulletin de paie)</label><input type="file" id="dirLogo" accept="image/*" /><div id="dirLogoPrev" style="margin-top:4px;"></div></div>
         <div><label for="dirTel">Téléphone de l'établissement</label><input type="text" id="dirTel" data-action="direction" data-key="telephone" placeholder="+224 ..." /></div>
@@ -713,7 +715,7 @@
   </section>
   <!-- RÉSULTATS PAR CLASSE -->
   <section id="sec_RESULTS" class="hidden">
-    <div class="flex-between" style="margin-bottom: 1rem;">
+    <div class="flex-between no-print" style="margin-bottom: 1rem;">
       <div>
         <h2 style="font-size: 1.15rem;">Résultats par classe</h2>
         <p style="font-size: 0.82rem; color: var(--muted);" id="resSub"></p>
@@ -723,20 +725,21 @@
     <div class="kpi-grid res-noprint" id="resKpis"></div>
     <div class="bulletin-header" style="align-items: flex-start; gap: 8px; margin-bottom: 0.75rem;">
       <div style="flex: 1; font-size: 0.8rem; font-weight: 700; line-height: 1.35;">
-        <div>MEPU-A</div><div>IRE : <span id="rhIre"></span></div><div>DCE : <span id="rhDce"></span></div><div>DSEE : <span id="rhDsee"></span></div>
+        <div><span class="mepu-txt">MEPU-A</span></div><div>IRE : <span id="rhIre"></span></div><div>DCE : <span id="rhDce"></span></div><div>DSEE : <span id="rhDsee"></span></div>
       </div>
       <div style="flex: 2; text-align: center;">
         <h2 style="font-size: 1.25rem; color: var(--primary-dark); margin-top: 2px;"><span class="school-name">GROUPE SCOLAIRE EXCELLENCE</span></h2>
-        <p style="font-size: 0.8rem;">Conakry • Année Scolaire <span id="rhAnnee"></span></p>
+        <p style="font-size: 0.8rem;"><span class="ville-txt">Conakry</span> • Année Scolaire <span id="rhAnnee"></span></p>
         <p style="font-size: 0.8rem;">Tél : <span id="rhTel"></span> • E-mail : <span id="rhMail"></span></p>
       </div>
       <div class="text-right" style="flex: 1;">
         <p style="font-weight: 800; font-size: 0.85rem; line-height: 1.3;">REPUBLIQUE DE GUINEE</p>
         <p style="font-weight: 800; font-size: 0.78rem; line-height: 1.3;"><span style="color:#ce1126;">Travail</span>-<span style="color:#e6b800;">Justice</span>-<span style="color:#009460;">Solidarité</span></p>
-        <p style="font-size: 0.85rem; margin-top: 0.7rem;">Période : <strong id="rpPeriode"></strong></p>
-        <p style="font-size: 0.85rem;">Classe : <strong id="rpClasse"></strong></p>
+        <strong id="rpPeriode" style="display:none;"></strong>
+        <p style="font-size: 0.85rem; margin-top: 0.7rem;">Classe : <strong id="rpClasse"></strong></p>
       </div>
     </div>
+    <div class="bulletin-title" id="resTitre" style="text-align:center; text-transform:uppercase; padding:4px; margin-bottom:0.6rem;"></div>
     <div class="card"><h3 class="no-print">Classement des élèves</h3><div style="overflow-x: auto;"><table><thead id="resHead"></thead><tbody id="resBody"></tbody></table></div></div>
     <div class="card" id="resStatsCard" style="margin-top: 0.75rem;"><h3 class="no-print">Statistiques de la classe</h3><div style="overflow-x:auto;"><table class="stats-table"><thead id="resStatsHead"></thead><tbody id="resStatsBody"></tbody></table></div></div>
     <div class="print-only" style="margin-top: 1rem; font-size: 0.85rem;">
@@ -2951,6 +2954,8 @@ return r('./index');})();
     document.getElementById('dirNom').value = (appState.direction || {}).nom || '';
     document.getElementById('dirValide').value = (appState.direction || {}).validite || '';
     document.getElementById('dirReglement').value = (appState.direction || {}).reglement || '';
+    document.getElementById('dirMepu').value = (appState.direction || {}).mepu || '';
+    document.getElementById('dirVille').value = (appState.direction || {}).ville || '';
     document.getElementById('dirAdresse').value = (appState.direction || {}).adresse || '';
     document.getElementById('dirLogoPrev').innerHTML = (appState.direction || {}).logo ? `<img src="${appState.direction.logo}" alt="" style="height:50px;" /> <button type="button" class="btn btn-outline" id="btnLogoDel" style="padding:2px 8px;font-size:0.72rem;">Retirer</button>` : '<small style="color:var(--muted);">Aucun logo</small>';
     document.getElementById('dirTel').value = (appState.direction || {}).telephone || '';
@@ -3218,6 +3223,7 @@ return r('./index');})();
 
     { const cl = appState.classes.find(c => c.nom === appState.classe) || {};
       document.getElementById('rpPeriode').textContent = periodLabel();
+      document.getElementById('resTitre').textContent = curIdx >= 0 ? 'Résultat du ' + periods[curIdx].label : 'Résultat annuel';
       document.getElementById('rpClasse').textContent = appState.classe || '';
       const dh = appState.direction || {};
       document.getElementById('rhIre').textContent = dh.ire || '………………';
@@ -4001,6 +4007,9 @@ return r('./index');})();
   function applySchoolName() {
     const n = schoolName();
     document.querySelectorAll('.school-name').forEach(el => { if (el.textContent !== n) el.textContent = n; });
+    const dd = appState.direction || {}, mp = dd.mepu || 'MEPU-A', vl = dd.ville || 'Conakry';
+    document.querySelectorAll('.mepu-txt').forEach(el => { if (el.textContent !== mp) el.textContent = mp; });
+    document.querySelectorAll('.ville-txt').forEach(el => { if (el.textContent !== vl) el.textContent = vl; });
     const sn = n.charAt(0) + n.slice(1).toLowerCase();
     if (document.title.indexOf(sn) < 0) document.title = 'ERP Scolaire – ' + sn;
   }
