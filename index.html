@@ -111,6 +111,26 @@
     label.chk input, .perm-chk { width: auto; }
     .role-pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; background: var(--primary-light); color: var(--primary-dark); }
     @media (max-width: 600px) { .user-info { display: none; } .bar-row { grid-template-columns: 1fr 1fr 48px; } }
+    /* ===== Amélioration mobile ===== */
+    @media (max-width: 720px) {
+      main { padding: .75rem; }
+      .card { padding: 1rem; border-radius: 12px; }
+      .grid-2, .tile-groups { grid-template-columns: 1fr; }
+      .grid-4 { grid-template-columns: 1fr 1fr; }
+      .dash-hero { padding: 1rem; }
+      .dash-hero h2 { font-size: 1.1rem; }
+      .kpi-grid { grid-template-columns: 1fr 1fr; gap: .6rem; }
+      .kpi-value { font-size: 1.4rem; }
+      .nav-tabs { -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+      .nav-tab { padding: .45rem .8rem; font-size: .82rem; }
+      .btn, input, select { min-height: 40px; }
+      table { font-size: .8rem; }
+      .tile-row { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); }
+      .header-flex h1 { font-size: 1rem !important; }
+    }
+    @media (max-width: 420px) { .grid-4, .kpi-grid { grid-template-columns: 1fr; } }
+    .btn:focus-visible, .nav-tab:focus-visible, .tile:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 
     .group-head { font-weight: 800; background: var(--primary-light); color: var(--primary-dark); padding: 7px 10px; border-radius: 6px; margin-top: 12px; font-size: 0.85rem; }
     .group-head small { font-weight: 600; color: var(--muted); }
@@ -667,14 +687,11 @@
         <div id="scolariteList"></div>
       </div>
       <div class="card" id="paieCard">
-        <h2 style="font-size: 1.05rem; margin-bottom: 1rem;">Paie des Enseignants</h2>
+        <h2 style="font-size: 1.05rem; margin-bottom: 0.25rem;">Paie du personnel</h2>
+        <p style="font-size: 0.8rem; color: var(--muted);" id="paieSummaryTitle"></p>
         <table>
-          <thead><tr><th>Enseignant</th><th>Détail</th><th class="text-right">Net à payer</th><th class="text-center">Statut</th></tr></thead>
-          <tbody>
-            <tr><td><strong>M. Soumah</strong><br><small>Mathématiques</small></td><td>48h × 45 000 GNF</td><td class="text-right"><strong>2 160 000 GNF</strong></td><td class="text-center"><span class="badge badge-ok">Payé</span></td></tr>
-            <tr><td><strong>Mme Barry</strong><br><small>Institutrice CM2</small></td><td>Forfait mensuel</td><td class="text-right"><strong>1 850 000 GNF</strong></td><td class="text-center"><span class="badge badge-ok">Payé</span></td></tr>
-            <tr><td><strong>M. Touré</strong><br><small>Physique-Chimie</small></td><td>36h × 45 000 GNF</td><td class="text-right"><strong>1 620 000 GNF</strong></td><td class="text-center"><span class="badge badge-warn">En attente</span></td></tr>
-          </tbody>
+          <thead><tr><th>Employé</th><th>Détail</th><th class="text-right">Net à payer</th><th class="text-center">Statut</th></tr></thead>
+          <tbody id="paieSummaryBody"></tbody>
         </table>
       </div>
     </div>
@@ -878,7 +895,7 @@
           <div><label for="eTon">Tontine (GNF)</label><input type="number" id="eTon" min="0" step="1" /></div>
         </div>
       </div>
-      <div id="eAffectBox" class="hidden"><label>Matières et classes tenues par l'enseignant de l'enseignant (classe et matière)</label><div id="eAffectList" class="check-list"></div></div>
+      <div id="eAffectBox" class="hidden"><label>Matières et classes tenues par l'enseignant (classe et matière)</label><div id="eAffectList" class="check-list"></div></div>
       <div id="eElevesBox" class="hidden"><label>Élève(s) rattaché(s)</label><div id="eElevesList" class="check-list"></div></div>
       <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;">
         <button type="button" class="btn btn-primary" id="btnEditValidate">Valider le compte</button>
@@ -2247,10 +2264,23 @@ return r('./index');})();
   };
 
   const clone = o => JSON.parse(JSON.stringify(o));
+  const fmt = n => (parseFloat(n) || 0).toFixed(2);
   const esc = v => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   // Empreinte de mot de passe (simple, côté navigateur uniquement : voir la note sur la sécurité)
-  function hashPwd(str) {
+  // v2 : empreinte salée et itérée (5000 tours). Les anciennes empreintes (v1) restent acceptées puis sont migrées à la connexion.
+  function hashPwd(str, salt) {
+    salt = salt || Array.from(crypto.getRandomValues(new Uint8Array(8)), b => b.toString(16).padStart(2, '0')).join('');
+    let h = legacyHash(salt + '|' + str);
+    for (let i = 0; i < 5000; i++) h = legacyHash(h + '|' + salt + '|' + i + '|' + str);
+    return 'v2$' + salt + '$' + h;
+  }
+  function checkPwd(stored, pass) {
+    if (typeof stored !== 'string') return false;
+    if (stored.startsWith('v2$')) { const p = stored.split('$'); return hashPwd(pass, p[1]) === stored; }
+    return stored === legacyHash(pass);
+  }
+  function legacyHash(str) {
     str = 'erp-scolaire|' + str;
     let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
     for (let i = 0, ch; i < str.length; i++) {
@@ -3061,6 +3091,15 @@ return r('./index');})();
     fsel.value = classesFin.includes(keepF) ? keepF : '';
     const finList = fsel.value ? baseList.filter(x => x.classe === fsel.value) : baseList;
     document.getElementById('paieCard').classList.toggle('hidden', !can('fin_view'));
+    if (can('fin_view')) {
+      const pm = Math.max(0, moisIndexNow());
+      document.getElementById('paieSummaryTitle').textContent = MOIS[pm] + ' ' + moisYear(pm) + ' — détail dans l\'onglet « Paie du personnel »';
+      document.getElementById('paieSummaryBody').innerHTML = appState.employes.map(e => {
+        const r = paieRec(pm, e.id), c = paieCalc(e, r);
+        const detail = e.type === 'HORAIRE' ? `${c.hTrav} h × ${formatGNF(c.taux)}` : 'Salaire mensuel';
+        return `<tr><td><strong>${esc(e.nom)}</strong><br><small>${esc(e.matiere || e.fonction || '')}</small></td><td>${detail}</td><td class="text-right"><strong>${formatGNF(c.net)}</strong></td><td class="text-center"><span class="badge ${r.paye ? 'badge-ok' : 'badge-warn'}">${r.paye ? 'Payé' : 'En attente'}</span></td></tr>`;
+      }).join('') || '<tr><td colspan="4" style="color:var(--muted);">Aucun employé.</td></tr>';
+    }
     document.getElementById('payFormCard').classList.toggle('hidden', !can('fin_edit'));
     if (can('fin_edit')) renderPayForm();
     document.getElementById('scolariteList').innerHTML = groupedByClass(finList).map(g => {
@@ -4337,6 +4376,34 @@ return r('./index');})();
       <div style="flex: 2; text-align: center;"><h2 style="font-size: 1.25rem; color: var(--primary-dark); margin-top: 2px;">${esc(schoolName())}</h2><p style="font-size: 0.8rem;">${esc(d.ville || 'Conakry')} • Année Scolaire ${START_YEAR} - ${START_YEAR + 1}</p><p style="font-size: 0.8rem;">Tél : ${esc(d.telephone || '—')} • E-mail : ${esc(d.email || '—')}</p></div>
       <div class="text-right" style="flex: 1;"><p style="font-weight: 800; font-size: 0.85rem;">REPUBLIQUE DE GUINEE</p><p style="font-weight: 800; font-size: 0.78rem;"><span style="color:#ce1126;">Travail</span>-<span style="color:#e6b800;">Justice</span>-<span style="color:#009460;">Solidarité</span></p>${rightHtml || ''}</div>${logo}</div>`;
   }
+  // Lien WhatsApp de relance vers les parents (numéro guinéen : indicatif 224 ajouté si absent)
+  function waLink(st, reste) {
+    let d = String(st.contact || '').replace(/[^\d]/g, '');
+    if (!d) return '';
+    if (d.length === 9) d = '224' + d;
+    const msg = `Bonjour, l'établissement ${schoolName()} vous informe qu'il reste ${formatGNF(reste)} de frais de scolarité à régler pour ${st.nom} (${st.classe}). Merci de régulariser. Cordialement.`;
+    return 'https://wa.me/' + d + '?text=' + encodeURIComponent(msg);
+  }
+  // Reçu de paiement imprimable (une fenêtre dédiée, un reçu par opération)
+  function printReceipt(st, recu) {
+    const pays = (st.paiements || []).filter(p => p.recu === recu);
+    if (!pays.length) return;
+    const d = appState.direction || {}, total = pays.reduce((a, p) => a + p.montant, 0);
+    const lib = p => p.type === 'DROIT' ? droitLabel(st) : 'Mensualité ' + MOIS[p.mois] + ' ' + moisYear(p.mois);
+    const w = window.open('', '_blank');
+    if (!w) return alert("Autorisez les fenêtres pop-up pour imprimer le reçu.");
+    const css = 'body{font-family:Segoe UI,Arial,sans-serif;max-width:640px;margin:20px auto;color:#111}h1{font-size:1.2rem;text-align:center;margin:0}p{margin:3px 0;font-size:.9rem}table{width:100%;border-collapse:collapse;margin:12px 0}td,th{border:1px solid #444;padding:5px 8px;font-size:.88rem;text-align:left}th{background:#e6f4ef}.r{text-align:right}.sig{display:flex;justify-content:space-between;margin-top:36px;font-size:.88rem}';
+    w.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Reçu ${esc(recu)}</title><style>${css}</style></head><body>
+      <h1>${esc(schoolName())}</h1><p style="text-align:center">${esc(d.adresse || '')} ${d.telephone ? '• Tél : ' + esc(d.telephone) : ''}</p>
+      <h1 style="margin-top:14px;border-top:2px solid #111;border-bottom:2px solid #111;padding:4px">REÇU DE PAIEMENT N° ${esc(recu)}</h1>
+      <p>Date : <strong>${fmtDate(pays[0].date)}</strong> &nbsp; Mode : <strong>${esc(pays[0].mode || '—')}</strong></p>
+      <p>Élève : <strong>${esc(st.nom)}</strong> &nbsp; Matricule : <strong>${esc(st.matricule)}</strong> &nbsp; Classe : <strong>${esc(st.classe)}</strong></p>
+      <table><thead><tr><th>Objet</th><th class="r">Montant</th></tr></thead><tbody>${pays.map(p => `<tr><td>${esc(lib(p))}</td><td class="r">${formatGNF(p.montant)}</td></tr>`).join('')}</tbody>
+      <tfoot><tr><th>TOTAL PAYÉ</th><th class="r">${formatGNF(total)}</th></tr><tr><td>Reste à payer sur l'année</td><td class="r">${formatGNF(resteTotal(st))}</td></tr></tfoot></table>
+      <div class="sig"><div>Le Parent<br><br><br>……………………</div><div>Le Comptable<br><br><br>${esc(d.comptable || '……………………')}</div></div>
+      <script>window.onload=function(){window.print();}<\/script></body></html>`);
+    w.document.close();
+  }
   function renderRecouv() {
     const card = document.getElementById('recouvCard'), priv = can('fin_view') || can('fin_edit');
     card.classList.toggle('hidden', !priv); if (!priv) return;
@@ -4349,11 +4416,11 @@ return r('./index');})();
     let tD = 0, tP = 0, tR = 0;
     const full = st => [st.prenom, st.nomFamille].filter(Boolean).join(' ') || st.nom;
     const body = list.map((st, i) => { const du = feeDue(st), pa = feePaid(st), re = resteTotal(st); tD += du; tP += pa; tR += re;
-      return `<tr><td class="text-center">${i + 1}</td><td>${esc(st.matricule)}</td><td><strong>${esc(full(st))}</strong></td><td>${esc(st.classe)}</td><td class="text-right">${formatGNF(du)}</td><td class="text-right">${formatGNF(pa)}</td><td class="text-right">${formatGNF(re)}</td><td class="text-center">${du ? Math.round(pa / du * 100) : 0} %</td><td class="text-center">${re === 0 ? 'Soldé' : 'Reste à payer'}</td></tr>`; }).join('');
+      return `<tr><td class="text-center">${i + 1}</td><td>${esc(st.matricule)}</td><td><strong>${esc(full(st))}</strong></td><td>${esc(st.classe)}</td><td class="text-right">${formatGNF(du)}</td><td class="text-right">${formatGNF(pa)}</td><td class="text-right">${formatGNF(re)}</td><td class="text-center">${du ? Math.round(pa / du * 100) : 0} %</td><td class="text-center">${re === 0 ? 'Soldé' : 'Reste à payer'}</td><td class="text-center no-print">${re > 0 && waLink(st, re) ? `<a href="${waLink(st, re)}" target="_blank" rel="noopener" class="btn btn-outline" style="padding:3px 8px; font-size:0.72rem; text-decoration:none;">WhatsApp</a>` : '—'}</td></tr>`; }).join('');
     const dir = appState.direction || {}, sp = '<div style="height: 34px;"></div>';
     document.getElementById('recouvArea').innerHTML = docHeaderHtml(`<p style="font-size:0.85rem; margin-top:0.7rem;">Classe : <strong>${esc(sel.value || 'Toutes')}</strong></p>`) +
       `<div class="bulletin-title" style="text-align:center; text-transform:uppercase; padding:4px; margin-bottom:0.6rem;">Liste de recouvrement des frais de scolarité${onlyDue ? ' — impayés' : ''}</div>
-      <div style="overflow-x:auto;"><table><thead><tr><th>Nº</th><th>Matricule</th><th>Prénoms et Nom</th><th>Classe</th><th class="text-right">Total dû (GNF)</th><th class="text-right">Total payé (GNF)</th><th class="text-right">Reste à payer (GNF)</th><th>Taux</th><th>Statut</th></tr></thead><tbody>${body || '<tr><td colspan="9" style="color:var(--muted);">Aucun élève.</td></tr>'}</tbody>
+      <div style="overflow-x:auto;"><table><thead><tr><th>Nº</th><th>Matricule</th><th>Prénoms et Nom</th><th>Classe</th><th class="text-right">Total dû (GNF)</th><th class="text-right">Total payé (GNF)</th><th class="text-right">Reste à payer (GNF)</th><th>Taux</th><th>Statut</th><th class="no-print">Relance</th></tr></thead><tbody>${body || '<tr><td colspan="10" style="color:var(--muted);">Aucun élève.</td></tr>'}</tbody>
       <tfoot><tr style="font-weight:800; background:#f2f7f5;"><td colspan="4">TOTAL (${list.length} élève${list.length > 1 ? 's' : ''})</td><td class="text-right">${formatGNF(tD)}</td><td class="text-right">${formatGNF(tP)}</td><td class="text-right">${formatGNF(tR)}</td><td class="text-center">${tD ? Math.round(tP / tD * 100) : 0} %</td><td></td></tr></tfoot></table></div>
       <p style="font-size:0.78rem; margin-top:0.4rem;">Édité le ${new Date().toLocaleDateString('fr-FR')}</p>
       <div style="display:flex; margin-top:0.6rem; font-size:0.85rem; align-items:flex-start;"><div style="text-align:center; flex:1;"><strong>Le Comptable</strong>${sp}<span>${esc(dir.comptable || '')}</span></div><div style="text-align:center; flex:1;"><strong>Le Directeur Général</strong>${sp}<span>${esc(dir.general || '')}</span></div></div>`;
@@ -4405,7 +4472,9 @@ return r('./index');})();
     const pass = document.getElementById('loginPass').value;
     if (isCloud()) { cloudLogin(login, pass, fail); return; }
     const user = appState.users.find(u => u.username.toLowerCase() === login);
-    if (user && user.pwd === hashPwd(pass)) {
+    if (user && checkPwd(user.pwd, pass)) {
+      if (!String(user.pwd).startsWith('v2$')) { user.pwd = hashPwd(pass); persistOnly(); }
+      if (pass.length < 6 || /^(admin|direction|prof|eleve|parent)123$/.test(pass)) setTimeout(() => alert('Sécurité : ce mot de passe est un mot de passe par défaut ou trop court. Changez-le dans « Comptes & accès » → Mot de passe.'), 400);
       if (user.statut === 'attente') return fail("Votre compte est en attente de validation par l'administrateur.");
       if (user.statut === 'refuse') return fail("Votre demande de compte a été refusée. Contactez l'administrateur.");
       failCount = 0;
@@ -5115,6 +5184,7 @@ let pendingPhoto = null;
     saveState(false);
     showAlert('Paiement de ' + formatGNF(montant) + ' enregistré (reçu ' + recu + ').');
     renderFinances();
+    if (confirm('Paiement enregistré. Imprimer le reçu ' + recu + ' ?')) printReceipt(st, recu);
   });
 
   document.getElementById('sec_FINANCES').addEventListener('click', (e) => {
@@ -5312,7 +5382,7 @@ let pendingPhoto = null;
       if (/invalid-credential|wrong-password|user-not-found|invalid-email/.test(code)) { failCount++; if (failCount >= 5) { lockUntil = Date.now() + 30000; failCount = 0; } return fail('E-mail ou mot de passe incorrect.'); }
       if (/too-many-requests/.test(code)) return fail('Trop de tentatives. Réessayez dans quelques minutes.');
       const c = cacheGet()[login.toLowerCase()];
-      if (c && c.h === hashPwd(pass)) user = c.user;
+      if (c && checkPwd(c.h, pass)) user = c.user;
       else return fail('Connexion impossible (êtes-vous hors ligne ?). Une première connexion avec internet est nécessaire sur cet appareil.');
     }
     failCount = 0;
