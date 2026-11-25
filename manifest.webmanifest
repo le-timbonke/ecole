@@ -1,6 +1,6 @@
 {
-  "name": "ERP Scolaire",
-  "short_name": "ERP Scolaire",
+  "name": "GESTION SCOLAIRE",
+  "short_name": "Gestion Scolaire",
   "description": "Gestion scolaire : notes, bulletins, scolarité, paie et messages aux parents",
   "lang": "fr",
   "start_url": "./index.html",

@@ -7,10 +7,11 @@
   <meta name="theme-color" content="#0b5d4b" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-title" content="ERP Scolaire" />
+  <meta name="apple-mobile-web-app-title" content="Gestion Scolaire" />
   <link rel="apple-touch-icon" href="icon-192.png" />
   <link rel="icon" type="image/png" href="icon-192.png" />
-  <title>ERP Scolaire Pro - Classes, périodes, accès par rôle & Tableau de bord</title>
+  <title>GESTION SCOLAIRE</title>
+  <script src="config.js"></script>
   <style>
     :root {
       --primary: #065f46;
@@ -260,7 +261,7 @@
 <div class="login-screen" id="loginScreen">
   <div class="login-card">
     <div class="logo" style="margin: 0 auto 0.75rem;">GS</div>
-    <h1 style="font-size: 1.25rem; text-align: center;">ERP Scolaire</h1>
+    <h1 style="font-size: 1.25rem; text-align: center;" id="loginTitle">GESTION SCOLAIRE</h1>
     <p style="text-align: center; color: var(--muted); font-size: 0.85rem; margin-bottom: 1.25rem;">Connectez-vous pour accéder à votre espace</p>
     <div id="jsWarning" class="css-fallback-note no-print">
     <strong>Note importante :</strong> Si vous voyez ce message ou si les boutons ne réagissent pas, vous ouvrez ce fichier dans une visionneuse qui bloque le code interactif. Cliquez sur les <strong>trois points (⋮)</strong> ou l'icône <strong>Télécharger / Ouvrir dans Chrome</strong> en haut de votre écran.
@@ -324,8 +325,8 @@
     <div class="brand">
       <div class="logo">GS</div>
       <div>
-        <h1 style="font-size: 1.15rem;">ERP Scolaire — Multi-Matières & Bulletins</h1>
-        <p style="font-size: 0.8rem; color: #a7f3d0;">Primaire (/10) • Collège & Lycée (/20) • Calcul Automatique des Rangs</p>
+        <h1 style="font-size: 1.15rem;" id="appTitle">GESTION SCOLAIRE</h1>
+        <p style="font-size: 0.8rem; color: #a7f3d0;" id="appSubtitle">Primaire (/10) • Collège & Lycée (/20) • Calcul Automatique des Rangs</p>
       </div>
     </div>
     <div class="user-box">
@@ -452,7 +453,7 @@
         </div>
         <div style="flex: 2; text-align: center;">
           <h2 style="font-size: 1.25rem; color: var(--primary-dark); margin-top: 2px;"><span class="school-name">GROUPE SCOLAIRE EXCELLENCE</span></h2>
-          <p style="font-size: 0.8rem;"><span class="ville-txt">Conakry</span> • Année Scolaire 2026 - 2027</p>
+          <p style="font-size: 0.8rem;"><span class="ville-txt">Conakry</span> • Année Scolaire <span class="annee-txt">2026 - 2027</span></p>
           <p style="font-size: 0.8rem;">Tél : <span id="bTel"></span> • E-mail : <span id="bMail"></span></p>
         </div>
         <div class="text-right" style="flex: 1;">
@@ -580,6 +581,8 @@
         <div><label for="dirLogo">Logo (bulletin de paie)</label><input type="file" id="dirLogo" accept="image/*" /><div id="dirLogoPrev" style="margin-top:4px;"></div></div>
         <div><label for="dirTel">Téléphone de l'établissement</label><input type="text" id="dirTel" data-action="direction" data-key="telephone" placeholder="+224 ..." /></div>
         <div><label for="dirEmail">E-mail de l'établissement</label><input type="text" id="dirEmail" data-action="direction" data-key="email" placeholder="contact@ecole.gn" /></div>
+        <div><label for="dirTitre">Titre de l'application (en-tête)</label><input type="text" id="dirTitre" data-action="direction" data-key="titre" placeholder="GESTION SCOLAIRE" /></div>
+        <div><label for="dirSousTitre">Sous-titre (en-tête)</label><input type="text" id="dirSousTitre" data-action="direction" data-key="soustitre" placeholder="Primaire (/10) • Collège & Lycée (/20) • Calcul Automatique des Rangs" /></div>
         <div><label for="dirComptable">Comptable</label><input type="text" id="dirComptable" data-action="direction" data-key="comptable" placeholder="Nom du comptable" /></div>
       </div>
     </div>
@@ -632,7 +635,7 @@
 
       <div class="flex-between" style="margin-top: 16px; padding-top: 12px; border-top: 1px solid #e2e8f0;">
         <p style="font-size: 0.8rem; color: var(--muted);" id="anciensInfo"></p>
-        <button type="button" class="btn btn-outline" id="btnArchive">Clôturer l'année : archiver les données actuelles</button>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;"><button type="button" class="btn btn-outline" id="btnArchive">Archiver seulement (sans changer d'année)</button><button type="button" class="btn btn-primary" id="btnNewYear">Ouvrir une nouvelle année scolaire</button></div>
       </div>
     </div>
     <div class="card hidden" id="sheetCard"></div>
@@ -919,6 +922,7 @@
         <div><label for="eNom">Nom complet</label><input type="text" id="eNom" /></div>
         <div><label for="eEmail">Adresse e-mail</label><input type="email" id="eEmail" readonly /></div>
         <div><label for="eRole">Rôle</label><select id="eRole"></select></div>
+        <div><label for="eExpire">Accès valable jusqu'au (vide = sans limite)</label><input type="date" id="eExpire" /><div style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;"><button type="button" class="btn btn-outline" data-ext="1" style="padding:3px 8px;font-size:0.72rem;">+1 mois</button><button type="button" class="btn btn-outline" data-ext="3" style="padding:3px 8px;font-size:0.72rem;">+3 mois</button><button type="button" class="btn btn-outline" data-ext="12" style="padding:3px 8px;font-size:0.72rem;">+1 an</button></div></div>
       </div>
       <div id="eProfBox" class="hidden">
         <div class="form-grid">
@@ -947,6 +951,7 @@
             <div><label for="uLogin">Adresse e-mail (identifiant)</label><input type="email" id="uLogin" autocomplete="off" autocapitalize="none" required /></div>
             <div><label for="uPass">Mot de passe provisoire</label><input type="text" id="uPass" autocomplete="off" minlength="6" placeholder="6 caractères minimum" required /></div>
             <div><label for="uRole">Rôle</label><select id="uRole"></select></div>
+            <div><label for="uExpire">Accès valable jusqu'au (vide = sans limite)</label><input type="date" id="uExpire" /></div>
           </div>
           <div id="uAffectBox" class="hidden"><label>Affectations (classe et matière)</label><div id="uAffectList" class="check-list"></div></div>
           <div id="uElevesBox" class="hidden"><label>Élève(s) rattaché(s)</label><div id="uElevesList" class="check-list"></div></div>
@@ -957,7 +962,7 @@
         <h2 style="font-size: 1.05rem; margin-bottom: 0.5rem;">Comptes existants</h2>
         <div style="overflow-x: auto;">
           <table>
-            <thead><tr><th>Nom</th><th>E-mail</th><th>Rôle</th><th>Accès</th><th class="text-right">Actions</th></tr></thead>
+            <thead><tr><th>Nom</th><th>E-mail</th><th>Rôle</th><th>Validité</th><th>Accès</th><th class="text-right">Actions</th></tr></thead>
             <tbody id="usersBody"></tbody>
           </table>
         </div>
@@ -2331,7 +2336,8 @@ return r('./index');})();
     DIRECTION: { label: 'Direction (pro)' },
     PROF:      { label: 'Enseignant' },
     ELEVE:     { label: 'Élève' },
-    PARENT:    { label: "Parent d'élève" }
+    PARENT:    { label: "Parent d'élève" },
+    COMPTABLE: { label: 'Comptabilité' }
   };
 
   const PERM_LABELS = {
@@ -2355,7 +2361,8 @@ return r('./index');})();
     DIRECTION: ['dashboard', 'dashboard_fin', 'notes_view', 'bulletin_all', 'fin_view'],
     PROF:      ['dashboard', 'notes_edit', 'bulletin_all'],
     ELEVE:     ['bulletin_own'],
-    PARENT:    ['bulletin_own', 'fin_own']
+    PARENT:    ['bulletin_own', 'fin_own'],
+    COMPTABLE: ['dashboard', 'dashboard_fin', 'fin_view', 'fin_edit']
   };
 
   const DEFAULT_USERS = [
@@ -2377,7 +2384,7 @@ return r('./index');})();
 
   // Année scolaire : octobre à juin (9 mensualités)
   const MOIS = ['Octobre', 'Novembre', 'Décembre', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin'];
-  const START_YEAR = 2026; // année scolaire 2026 - 2027
+  let START_YEAR = 2026; // année de début de l'année scolaire en cours (modifiable : « Ouvrir une nouvelle année »)
   const DEFAULT_FEES = {
     COLLEGE:  { inscription: 250000, reinscription: 150000, mensualite: 250000 },
     PRIMAIRE: { inscription: 250000, reinscription: 150000, mensualite: 250000 }
@@ -2396,6 +2403,8 @@ return r('./index');})();
   }
   // Met à jour (migre) les données enregistrées vers le format courant ; sans danger si répété
   function normalizeState() {
+    START_YEAR = parseInt(appState.anneeDebut) || 2026;
+    appState.anneeDebut = START_YEAR;
     if (!Array.isArray(appState.users) || !appState.users.length) appState.users = clone(DEFAULT_USERS);
     if (!appState.rolePerms) appState.rolePerms = clone(DEFAULT_PERMS);
     Object.keys(ROLES).forEach(r => { if (!Array.isArray(appState.rolePerms[r])) appState.rolePerms[r] = clone(DEFAULT_PERMS[r]); });
@@ -2528,7 +2537,9 @@ return r('./index');})();
   function newStudentId() {
     // En mode synchronisé, identifiant unique par appareil (évite les doublons entre appareils hors connexion)
     if (localStorage.getItem('erp_sync_cfg') || (typeof isCloud === 'function' && isCloud())) return Date.now() * 1000 + Math.floor(Math.random() * 1000);
-    return appState.students.length ? Math.max(...appState.students.map(s => s.id)) + 1 : 1;
+    let m = appState.students.length ? Math.max(...appState.students.map(s => s.id)) : 0;
+    (appState.archives || []).forEach(a => (a.students || []).forEach(x => { if (typeof x.id === 'number' && x.id > m) m = x.id; }));
+    return m + 1;
   }
   function findAncien(m) {
     const key = m.trim().toLowerCase();
@@ -2709,7 +2720,33 @@ return r('./index');})();
     if (first) { appState.cycle = first.cycle; appState.classe = first.nom; }
   }
 
+  // ===== Durée de validité des accès (fixée par l'administrateur, renouvelable) =====
+  const todayISO = () => new Date().toLocaleDateString('sv-SE');
+  function accessExpired(u) { return !!(u && u.role !== 'ADMIN' && u.expireLe && todayISO() > u.expireLe); }
+  function addMonthsISO(baseISO, m) {
+    const d = new Date(baseISO + 'T00:00:00'), day = d.getDate();
+    d.setDate(1); d.setMonth(d.getMonth() + m);
+    d.setDate(Math.min(day, new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()));
+    return d.toLocaleDateString('sv-SE');
+  }
+  function expiryBadge(u) {
+    if (u.role === 'ADMIN') return '<span class="badge badge-muted">Sans limite</span>';
+    if (!u.expireLe) return '<span class="badge badge-muted">Sans limite</span>';
+    if (accessExpired(u)) return `<span class="badge badge-warn">Expiré le ${fmtDate(u.expireLe)}</span>`;
+    const left = Math.round((new Date(u.expireLe + 'T00:00:00') - new Date(todayISO() + 'T00:00:00')) / 86400000);
+    return `<span class="badge ${left <= 15 ? 'role-pill warn' : 'badge-ok'}" style="${left <= 15 ? 'padding:3px 10px;' : ''}">Jusqu'au ${fmtDate(u.expireLe)}${left <= 15 ? ' (' + left + ' j)' : ''}</span>`;
+  }
+  function showExpiredMsg(u) {
+    const err = document.getElementById('loginError');
+    err.textContent = `Votre accès a expiré le ${fmtDate(u.expireLe)}. Contactez l'administrateur pour le renouveler.`;
+    err.classList.remove('hidden');
+  }
+  setInterval(() => {
+    if (currentUser && accessExpired(currentUser)) { const u = currentUser; logout(); showExpiredMsg(u); }
+  }, 60000);
+
   function enterApp(user) {
+    if (accessExpired(user)) { showExpiredMsg(user); document.body.classList.add('locked'); return; }
     currentUser = user;
     try { sessionStorage.setItem(SESSION_KEY, user.id); } catch (e) {}
     document.body.classList.remove('locked');
@@ -3050,6 +3087,8 @@ return r('./index');})();
     document.getElementById('dirDsee').value = (appState.direction || {}).dsee || '';
     document.getElementById('dirNom').value = (appState.direction || {}).nom || '';
     document.getElementById('dirValide').value = (appState.direction || {}).validite || '';
+    document.getElementById('dirValide').disabled = !can('users');
+    document.querySelector('label[for="dirValide"]').textContent = can('users') ? 'Validité des cartes (jusqu\'au) — fixée par l\'administrateur' : 'Validité des cartes (réservée à l\'administrateur)';
     document.getElementById('dirReglement').value = (appState.direction || {}).reglement || '';
     document.getElementById('dirMepu').value = (appState.direction || {}).mepu || '';
     document.getElementById('dirVille').value = (appState.direction || {}).ville || '';
@@ -3058,6 +3097,8 @@ return r('./index');})();
     document.getElementById('dirTel').value = (appState.direction || {}).telephone || '';
     document.getElementById('dirEmail').value = (appState.direction || {}).email || '';
     document.getElementById('dirComptable').value = (appState.direction || {}).comptable || '';
+    document.getElementById('dirTitre').value = (appState.direction || {}).titre || '';
+    document.getElementById('dirSousTitre').value = (appState.direction || {}).soustitre || '';
     document.getElementById('cfgCycleLabel').textContent = appState.classe || 'aucune classe';
     const subs = appState.subjects[appState.classe] || [];
     document.getElementById('subjectsTableBody').innerHTML = subs.map(s => `<tr>
@@ -3599,6 +3640,7 @@ return r('./index');})();
     document.getElementById('eNom').value = u.nom;
     document.getElementById('eEmail').value = u.username;
     document.getElementById('eRole').value = u.role;
+    document.getElementById('eExpire').value = u.expireLe || '';
     document.getElementById('eAffectList').innerHTML = affectListHtml(u.affect);
     document.getElementById('eElevesList').innerHTML = elevesListHtml(u.eleves);
     toggleBoxes('eRole', 'eAffectBox', 'eElevesBox');
@@ -3633,7 +3675,7 @@ return r('./index');})();
       if (u.role === 'ADMIN' && role !== 'ADMIN' && u.statut === 'actif' && activeAdmins() <= 1) return alert('Il faut conserver au moins un administrateur actif.');
       const acc = collectAccess(role, 'eAffectList', 'eElevesList');
       if (acc.error) return alert(acc.error);
-      Object.assign(u, { nom, role, affect: acc.affect, eleves: acc.eleves, statut });
+      Object.assign(u, { nom, role, affect: acc.affect, eleves: acc.eleves, statut, expireLe: document.getElementById('eExpire').value || '' });
       if (role === 'PROF') {
         Object.assign(u, { tel: document.getElementById('eTel').value.trim(), tauxHoraire: parseFloat(document.getElementById('eTaux').value) || 0, cotisation: parseFloat(document.getElementById('eCot').value) || 0, tontine: parseFloat(document.getElementById('eTon').value) || 0 });
         syncEmployeeFromUser(u);
@@ -3671,6 +3713,7 @@ return r('./index');})();
       <td><strong>${esc(u.nom)}</strong></td>
       <td>${esc(u.username)}</td>
       <td><span class="role-pill">${ROLES[u.role] ? ROLES[u.role].label : esc(u.role)}</span>${u.statut === 'refuse' ? ' <span class="role-pill bad">Refusé</span>' : ''}</td>
+      <td style="white-space:nowrap;">${expiryBadge(u)}${u.role === 'ADMIN' ? '' : `<br><span style="display:inline-flex; gap:4px; margin-top:4px;"><button type="button" class="btn btn-outline" data-action="renew" data-m="1" data-uid="${u.id}" style="padding:2px 6px; font-size:0.68rem;">+1 mois</button><button type="button" class="btn btn-outline" data-action="renew" data-m="3" data-uid="${u.id}" style="padding:2px 6px; font-size:0.68rem;">+3 mois</button><button type="button" class="btn btn-outline" data-action="renew" data-m="12" data-uid="${u.id}" style="padding:2px 6px; font-size:0.68rem;">+1 an</button></span>`}</td>
       <td style="font-size:0.8rem;">${esc(accessTxt(u))}</td>
       <td class="text-right" style="white-space:nowrap;">
         <button type="button" class="btn btn-outline" data-action="edit" data-uid="${u.id}" style="padding:4px 8px; font-size:0.75rem;">Modifier</button>
@@ -4117,8 +4160,17 @@ return r('./index');})();
     const dd = appState.direction || {}, mp = dd.mepu || 'MEPU-A', vl = dd.ville || 'Conakry';
     document.querySelectorAll('.mepu-txt').forEach(el => { if (el.textContent !== mp) el.textContent = mp; });
     document.querySelectorAll('.ville-txt').forEach(el => { if (el.textContent !== vl) el.textContent = vl; });
+    const an = START_YEAR + ' - ' + (START_YEAR + 1);
+    document.querySelectorAll('.annee-txt').forEach(el => { if (el.textContent !== an) el.textContent = an; });
     const sn = n.charAt(0) + n.slice(1).toLowerCase();
-    if (document.title.indexOf(sn) < 0) document.title = 'ERP Scolaire – ' + sn;
+    const T = {
+      appTitle: dd.titre || 'GESTION SCOLAIRE',
+      appSubtitle: dd.soustitre || 'Primaire (/10) • Collège & Lycée (/20) • Calcul Automatique des Rangs',
+      loginTitle: dd.titre || 'GESTION SCOLAIRE'
+    };
+    Object.keys(T).forEach(id => { const el = document.getElementById(id); if (el && el.textContent !== T[id]) el.textContent = T[id]; });
+    const wt = (dd.titre || 'GESTION SCOLAIRE') + ' – ' + sn;
+    if (document.title !== wt) document.title = wt;
   }
   new MutationObserver(applySchoolName).observe(document.body, { childList: true, subtree: true });
 
@@ -4697,7 +4749,7 @@ return r('./index');})();
     if (acc.error) return alert(acc.error);
     if (isCloud()) {
       cloudCreateAuth(username, pass).then(uid => {
-        appState.users.push({ id: uid, username, nom, role, statut: 'actif', affect: acc.affect, eleves: acc.eleves });
+        appState.users.push({ id: uid, username, nom, role, statut: 'actif', affect: acc.affect, eleves: acc.eleves, expireLe: document.getElementById('uExpire').value || '' });
         saveState(false);
         document.getElementById('formAddUser').reset();
         renderUsers();
@@ -4705,7 +4757,7 @@ return r('./index');})();
       }).catch(err => alert(/email-already-in-use/.test((err && err.code) || '') ? 'Cette adresse e-mail est déjà utilisée.' : 'Création impossible : ' + ((err && err.message) || '')));
       return;
     }
-    appState.users.push({ id: 'u_' + Date.now(), username, nom, role, pwd: hashPwd(pass), statut: 'actif', affect: acc.affect, eleves: acc.eleves });
+    appState.users.push({ id: 'u_' + Date.now(), username, nom, role, pwd: hashPwd(pass), statut: 'actif', affect: acc.affect, eleves: acc.eleves, expireLe: document.getElementById('uExpire').value || '' });
     saveState(false);
     document.getElementById('formAddUser').reset();
     renderUsers();
@@ -4716,13 +4768,24 @@ return r('./index');})();
   document.getElementById('btnEditSave').addEventListener('click', () => applyEdit('actif'));
   document.getElementById('btnEditRefuse').addEventListener('click', () => { if (confirm('Refuser cette demande de compte ?')) applyEdit('refuse'); });
   document.getElementById('btnEditCancel').addEventListener('click', closeEdit);
+  document.getElementById('editUserCard').addEventListener('click', (e) => {
+    const m = parseInt(e.target.dataset.ext); if (!m) return;
+    const inp = document.getElementById('eExpire'), t = todayISO();
+    inp.value = addMonthsISO(inp.value && inp.value > t ? inp.value : t, m);
+  });
 
   document.getElementById('sec_USERS').addEventListener('click', (e) => {
     if (!can('users')) return;
     const action = e.target.dataset.action;
     const u = appState.users.find(x => x.id === e.target.dataset.uid);
     if (!u) return;
-    if (action === 'edit') {
+    if (action === 'renew') {
+      const m = parseInt(e.target.dataset.m), t = todayISO();
+      const base = (u.expireLe && u.expireLe > t) ? u.expireLe : t;
+      u.expireLe = addMonthsISO(base, m);
+      saveState(false); renderUsers();
+      showAlert('Accès de ' + u.nom + ' prolongé jusqu\'au ' + fmtDate(u.expireLe) + '.');
+    } else if (action === 'edit') {
       openEdit(u);
     } else if (action === 'pwd' && isCloud()) {
       if (!confirm('Envoyer un e-mail de réinitialisation du mot de passe à ' + u.username + ' ?')) return;
@@ -4930,7 +4993,7 @@ document.getElementById('modeNew').addEventListener('click', () => setInscMode('
     if (matriculeExists(a.matricule)) return alert('Cet élève est déjà inscrit pour cette année.');
     const nomFamille = a.nomFamille || a.nom || '', prenom = a.prenom || '';
     appState.students.push({
-      id: newStudentId(), matricule: a.matricule, classe: document.getElementById('reClasse').value || appState.classes[0].nom,
+      id: (a.id && !appState.students.some(x => x.id === a.id)) ? a.id : newStudentId(), matricule: a.matricule, classe: document.getElementById('reClasse').value || appState.classes[0].nom,
       prenom, nomFamille, nom: (nomFamille + ' ' + prenom).trim(),
       sexe: a.sexe || '', naissance: a.naissance || '', lieuNaissance: a.lieuNaissance || '', adresse: a.adresse || '',
       pere: a.pere || '', mere: a.mere || '', contact: a.contact || '',
@@ -4959,6 +5022,26 @@ document.getElementById('modeNew').addEventListener('click', () => setInscMode('
   });
 
 let pendingPhoto = null;
+
+  // ===== Ouverture d'une nouvelle année scolaire =====
+  document.getElementById('btnNewYear').addEventListener('click', () => {
+    if (!can('config')) return;
+    const cur = START_YEAR, next = cur + 1, label = cur + '-' + (cur + 1), nlabel = next + '-' + (next + 1);
+    if (!confirm(`Ouvrir l'année scolaire ${nlabel} ?\n\nL'année ${label} sera d'abord ARCHIVÉE (élèves, notes, paiements, paie), consultable dans « Archives ».\nEnsuite, pour la nouvelle année :\n• la liste des élèves est VIDÉE : les élèves ne restent que dans les archives ;\n• notes, paiements, absences, présences et paie sont remis à zéro ;\n• classes, matières, frais, comptes et emplois du temps sont conservés.\n\nPour réinscrire un élève : « Réinscription », saisir son matricule.\n\nFaites d'abord une sauvegarde (Exporter une sauvegarde). Continuer ?`)) return;
+    const exist = appState.archives.findIndex(a => a.annee === label);
+    if (exist >= 0 && !confirm(`Une archive « ${label} » existe déjà. La remplacer ?`)) return;
+    const snap = { id: 'a_' + Date.now(), annee: label, date: new Date().toISOString().slice(0, 10), partial: false,
+      classes: clone(appState.classes), subjects: clone(appState.subjects), fees: clone(appState.fees), students: clone(appState.students),
+      paie: clone(appState.paie || {}) };
+    if (exist >= 0) appState.archives[exist] = snap; else appState.archives.push(snap);
+    appState.students = [];
+    appState.presence = {}; appState.paie = {};
+    appState.anneeDebut = next; START_YEAR = next;
+    appState.periode = (PERIODS[appState.cycle] || PERIODS.COLLEGE)[0].id;
+    saveState(false);
+    initUI();
+    showAlert('Année ' + nlabel + ' ouverte. Réinscrivez les élèves avec leur matricule (Matières & élèves → Réinscription).');
+  });
 
   // ===== Import des photos par matricule =====
   function resizePhoto(file) {
@@ -5244,6 +5327,7 @@ let pendingPhoto = null;
       appState.students = appState.students.map(x => x.id === sid ? { ...x, matricule: m } : x);
       saveState(false);
     } else if (action === 'direction') {
+      if (e.target.dataset.key === 'validite' && !can('users')) { renderConfig(); return alert("Seul l'administrateur peut définir la durée de validité des cartes."); }
       appState.direction = { ...(appState.direction || {}), [e.target.dataset.key]: e.target.value.trim() };
       saveState(false); showAlert('Direction enregistrée');
     } else if (action === 'titulaire') {
@@ -5359,7 +5443,7 @@ let pendingPhoto = null;
 
   // ===== Synchronisation Firebase (hors ligne / en ligne) =====
   const SYNC_CFG_KEY = 'erp_sync_cfg', SYNC_META_KEY = 'erp_sync_meta';
-  const SYNC_KEYS = ['classes', 'subjects', 'fees', 'direction', 'presenceCfg', 'employes', 'edt', 'rolePerms', 'profsPublic'];
+  const SYNC_KEYS = ['classes', 'subjects', 'fees', 'direction', 'presenceCfg', 'employes', 'edt', 'rolePerms', 'profsPublic', 'anneeDebut'];
   const SYNC_DICTS = { presence: 'pres', paie: 'paie' };
   const SDK = 'https://www.gstatic.com/firebasejs/9.23.0/';
   const sync = { cfg: null, db: null, remote: new Map(), meta: {}, lct: {}, unsub: null, timer: null, running: false, again: false, mode: null, applying: false, pendingRender: false, state: 'off' };
@@ -5380,6 +5464,10 @@ let pendingPhoto = null;
   function buildLocalDocs() {
     const d = {};
     appState.students.forEach(st => { d['stu_' + st.id] = JSON.stringify(st); });
+    (appState.archives || []).forEach(a => {
+      d['arcm_' + a.id] = JSON.stringify({ id: a.id, annee: a.annee, date: a.date || '', partial: !!a.partial, classes: a.classes || [], subjects: a.subjects || {}, fees: a.fees || {}, paie: a.paie || {} });
+      (a.students || []).forEach(st => { d['arcs_' + a.id + '__' + st.id] = JSON.stringify(st); });
+    });
     SYNC_KEYS.forEach(k => { if (appState[k] !== undefined) d['key_' + k] = JSON.stringify(appState[k]); });
     Object.keys(SYNC_DICTS).forEach(k => Object.keys(appState[k] || {}).forEach(sub => { d[SYNC_DICTS[k] + '_' + sub] = JSON.stringify(appState[k][sub]); }));
     return d;
@@ -5389,12 +5477,22 @@ let pendingPhoto = null;
     if (kind === 'stu') {
       const idx = appState.students.findIndex(x => String(x.id) === key);
       if (idx >= 0) appState.students[idx] = val; else appState.students.push(val);
+    } else if (kind === 'arcm' || kind === 'arcs') {
+      appState.archives = appState.archives || [];
+      const aid = kind === 'arcm' ? val.id : key.slice(0, key.indexOf('__'));
+      let a = appState.archives.find(x => x.id === aid);
+      if (!a) { a = { id: aid, annee: aid, date: '', partial: true, classes: [], subjects: {}, fees: {}, students: [] }; appState.archives.push(a); }
+      if (kind === 'arcm') Object.assign(a, val);
+      else { a.students = a.students || []; const k = a.students.findIndex(x => String(x.id) === String(val.id)); if (k >= 0) a.students[k] = val; else a.students.push(val); }
+      appState.archives.sort((x, y) => String(x.date || '').localeCompare(String(y.date || '')) || String(x.id).localeCompare(String(y.id)));
     } else if (kind === 'key') appState[key] = val;
     else { const dk = Object.keys(SYNC_DICTS).find(k => SYNC_DICTS[k] === kind); if (dk) { appState[dk] = appState[dk] || {}; appState[dk][key] = val; } }
   }
   function applyRemoteDelete(id) {
     const i = id.indexOf('_'), kind = id.slice(0, i), key = id.slice(i + 1);
     if (kind === 'stu') appState.students = appState.students.filter(x => String(x.id) !== key);
+    else if (kind === 'arcm') appState.archives = (appState.archives || []).filter(x => x.id !== key);
+    else if (kind === 'arcs') { const a = (appState.archives || []).find(x => x.id === key.slice(0, key.indexOf('__'))); if (a) a.students = (a.students || []).filter(x => String(x.id) !== key.slice(key.indexOf('__') + 2)); }
     else { const dk = Object.keys(SYNC_DICTS).find(k => SYNC_DICTS[k] === kind); if (dk && appState[dk]) delete appState[dk][key]; }
   }
 
@@ -5433,7 +5531,7 @@ let pendingPhoto = null;
         if (ae && /^(INPUT|SELECT|TEXTAREA)$/.test(ae.tagName)) sync.pendingRender = true; else if (currentUser) renderAll();
       }
       saveSyncMeta();
-      const canPush = !isCloud() || (currentUser && ['ADMIN', 'DIRECTION', 'PROF'].includes(currentUser.role));
+      const canPush = !isCloud() || (currentUser && ['ADMIN', 'DIRECTION', 'COMPTABLE', 'PROF'].includes(currentUser.role));
       const ops = canPush ? [...push.map(id => ({ id, j: local[id] })), ...del.map(id => ({ id }))] : [];
       if (ops.length) {
         syncStatus(navigator.onLine ? 'busy' : 'offline');
@@ -5462,15 +5560,8 @@ let pendingPhoto = null;
   const loadScript = src => new Promise((res, rej) => { const el = document.createElement('script'); el.src = src; el.onload = res; el.onerror = () => rej(new Error('Impossible de charger Firebase (pas d\'internet ?)')); document.head.appendChild(el); });
 
   // ===== Mode multi-utilisateurs (un compte Firebase par personne) =====
-  const CLOUD_CONFIG = {
-    apiKey: "AIzaSyCAFuvaOBq7tfK8Xe6l_ji3h9RRP9OW6KE",
-    authDomain: "ecole-224.firebaseapp.com",
-    projectId: "ecole-224",
-    storageBucket: "ecole-224.firebasestorage.app",
-    messagingSenderId: "67933174496",
-    appId: "1:67933174496:web:c7f70480f7a5284c60ee85",
-    measurementId: "G-7VX670HNVC"
-  };
+  // La configuration Firebase de l'école est dans le fichier config.js (une école = un fichier config.js)
+  const CLOUD_CONFIG = (window.ERP_CONFIG && window.ERP_CONFIG.firebase) || null;
   function isCloud() { return !!CLOUD_CONFIG; }
   let fbReady = null;
   function ensureFirebase() {
@@ -5488,6 +5579,7 @@ let pendingPhoto = null;
   function cachePut(email, pass, user) { const c = cacheGet(); c[email.toLowerCase()] = { h: hashPwd(pass), user }; try { localStorage.setItem(CACHE_KEY, JSON.stringify(c)); } catch (e) {} }
 
   function cloudEnter(user) {
+    if (accessExpired(user)) { showExpiredMsg(user); try { firebase.auth().signOut(); } catch (e) {} return; }
     if (user.role !== 'ADMIN') appState.users = [user];
     const info = document.getElementById('loginInfo'); if (info) info.classList.add('hidden');
     document.getElementById('loginPass').value = '';
