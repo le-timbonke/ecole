@@ -351,6 +351,7 @@
     <button type="button" class="nav-tab" id="tab_PAIE">Paie du personnel</button>
     <button type="button" class="nav-tab" id="tab_RELEVE">Relevé de paiements</button>
     <button type="button" class="nav-tab" id="tab_MSG">Messages aux parents</button>
+    <button type="button" class="nav-tab" id="tab_CHAT">Messagerie</button>
     <button type="button" class="nav-tab" id="tab_ARCHIVES">Archives</button>
     <button type="button" class="nav-tab" id="tab_USERS">Comptes &amp; accès</button>
   </div>
@@ -762,6 +763,23 @@
     <div id="releveEmpty" class="card hidden">Aucun élève à afficher : aucun élève n'est rattaché à ce compte.</div>
     <div class="bulletin-box" id="relevePrintArea"><div id="releveContent"></div></div>
     <div id="releveSecond" style="margin-top: 1rem;"></div>
+  </section>
+  <!-- MESSAGERIE INTERNE -->
+  <section id="sec_CHAT" class="hidden">
+    <div class="card no-print">
+      <h2 style="font-size: 1.05rem; margin-bottom: 0.25rem;">Messagerie</h2>
+      <p style="font-size: 0.82rem; color: var(--muted); margin-bottom: 10px;">Échangez avec l'administration, la direction, la comptabilité et les enseignants. Les messages sont visibles uniquement par leur destinataire et par vous.</p>
+      <div class="form-grid">
+        <div><label for="chatTo">Destinataire</label><select id="chatTo"></select></div>
+      </div>
+      <div style="margin-top:8px;"><label for="chatText">Message</label><textarea id="chatText" rows="3" maxlength="1000" style="width:100%;" placeholder="Écrivez votre message…"></textarea></div>
+      <div style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;"><button type="button" class="btn btn-primary" id="chatSend">Envoyer</button><small id="chatCount" style="color:var(--muted)"></small></div>
+    </div>
+    <div class="card no-print">
+      <div style="display:flex; gap:8px; margin-bottom:10px;"><button type="button" class="btn btn-primary" id="chatTabIn">Reçus</button><button type="button" class="btn btn-outline" id="chatTabOut">Envoyés</button></div>
+      <div id="chatNotice" class="hidden" style="font-size:0.82rem; color:var(--danger); margin-bottom:8px;"></div>
+      <div id="chatList"></div>
+    </div>
   </section>
   <!-- MESSAGES AUX PARENTS -->
   <section id="sec_MSG" class="hidden">
@@ -2353,7 +2371,9 @@ return r('./index');})();
     fin_own:       'Voir la scolarité de ses enfants',
     users:         'Gérer les comptes et les autorisations',
     presence:      'Faire le contrôle de présence des élèves',
-    edt_edit:      'Modifier les emplois du temps'
+    edt_edit:      'Modifier les emplois du temps',
+    chat:          'Utiliser la messagerie interne',
+    chat_all:      'Messagerie : écrire à tous, aux parents et aux élèves'
   };
 
   const DEFAULT_PERMS = {
@@ -2413,6 +2433,12 @@ return r('./index');})();
       ['DIRECTION', 'PROF'].forEach(r => { if (!appState.rolePerms[r].includes('presence')) appState.rolePerms[r].push('presence'); });
       if (!appState.rolePerms.DIRECTION.includes('edt_edit')) appState.rolePerms.DIRECTION.push('edt_edit');
     }
+    if (!appState.permsChat) {
+      appState.permsChat = true;
+      Object.keys(ROLES).forEach(r => { if (!appState.rolePerms[r].includes('chat')) appState.rolePerms[r].push('chat'); });
+      if (!appState.rolePerms.DIRECTION.includes('chat_all')) appState.rolePerms.DIRECTION.push('chat_all');
+    }
+    if (!Array.isArray(appState.messages)) appState.messages = [];
     if (!appState.presenceCfg) appState.presenceCfg = { n: 2, labels: ['Matin', 'Après-midi'] };
     if (!appState.presence) appState.presence = {};
     if (!appState.paie) appState.paie = {};
@@ -2607,7 +2633,99 @@ return r('./index');})();
   }
 
   // ===== Accès, rôles et autorisations =====
-  const TAB_ORDER = ['DASH', 'NOTES', 'BULLETIN', 'RESULTS', 'PRESENCE', 'EDT', 'CARTES', 'CONFIG', 'FINANCES', 'PAIE', 'RELEVE', 'MSG', 'ARCHIVES', 'USERS'];
+  // ===== Messagerie interne =====
+  const chat = { cloud: new Map(), parts: [], unsubs: [], err: '', view: 'in', lastTab: '', viewSeen: 0 };
+  const chatAll = () => (isCloud() ? Array.from(chat.cloud.values()) : (appState.messages || [])).slice().sort((a, b) => b.ts - a.ts);
+  const chatIsIn = m => !!currentUser && m.from !== currentUser.id && (m.to === 'all' || m.to === currentUser.role || m.to === currentUser.id);
+  const chatSeenKey = () => 'chat_seen_' + currentUser.id;
+  function chatSeen() { try { return parseInt(localStorage.getItem(chatSeenKey())) || 0; } catch (e) { return 0; } }
+  function chatUnread() { if (!currentUser || !can('chat')) return 0; const s = chatSeen(); return chatAll().filter(m => chatIsIn(m) && m.ts > s).length; }
+  function chatRecipients(extra) {
+    const g = [['ADMIN', 'Administration'], ['DIRECTION', 'Direction'], ['COMPTABLE', 'Comptabilité'], ['PROF', 'Enseignants']];
+    if (can('chat_all')) g.push(['PARENT', 'Tous les parents'], ['ELEVE', 'Tous les élèves'], ['all', 'Tous les utilisateurs']);
+    let out = g.map(([v, l]) => ({ v, l }));
+    const people = (!isCloud() || currentUser.role === 'ADMIN') ? appState.users.filter(u => u.statut === 'actif' && u.id !== currentUser.id).map(u => ({ v: u.id, l: u.nom + ' (' + ROLES[u.role].label + ')' })) : [];
+    if (extra && !people.some(x => x.v === extra.v)) people.unshift(extra);
+    return out.concat(people);
+  }
+  function renderChat(replyTo) {
+    const sel = document.getElementById('chatTo');
+    if (replyTo || !sel.options.length) {
+      const prev = sel.value;
+      sel.innerHTML = chatRecipients(replyTo).map(o => `<option value="${esc(o.v)}">${esc(o.l)}</option>`).join('');
+      if (replyTo) sel.value = replyTo.v; else if (prev) sel.value = prev;
+    }
+    if (chat.lastTab !== 'CHAT') chat.viewSeen = chatSeen();
+    const inbox = chat.view === 'in';
+    document.getElementById('chatTabIn').className = 'btn ' + (inbox ? 'btn-primary' : 'btn-outline');
+    document.getElementById('chatTabOut').className = 'btn ' + (inbox ? 'btn-outline' : 'btn-primary');
+    const n = document.getElementById('chatNotice');
+    n.classList.toggle('hidden', !chat.err);
+    if (chat.err) n.textContent = /permission|insufficient/i.test(chat.err) ? "Messagerie indisponible : l'administrateur doit mettre à jour les règles Firestore (collection « messages »)." : 'Erreur : ' + chat.err;
+    const list = chatAll().filter(m => inbox ? chatIsIn(m) : m.from === currentUser.id);
+    document.getElementById('chatList').innerHTML = list.length ? list.map(m => {
+      const fresh = inbox && m.ts > chat.viewSeen;
+      const who = inbox ? `De : <strong>${esc(m.fromNom)}</strong> <small style="color:var(--muted)">(${esc((ROLES[m.fromRole] || {}).label || '')})</small>` : `À : <strong>${esc(m.toNom || m.to)}</strong>`;
+      const d = new Date(m.ts).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      return `<div style="border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin-bottom:8px; ${fresh ? 'background:#ecfdf5; border-color:#34d399;' : ''}">
+        <div style="display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; font-size:0.85rem;"><span>${who}${fresh ? ' <span class="badge badge-ok">Nouveau</span>' : ''}</span><small style="color:var(--muted)">${d}</small></div>
+        <div style="white-space:pre-wrap; margin:6px 0; word-break:break-word;">${esc(m.text)}</div>
+        <div style="display:flex; gap:6px;">${inbox ? `<button type="button" class="btn btn-outline" data-chat="reply" data-id="${esc(m.id)}" style="padding:3px 10px; font-size:0.75rem;">Répondre</button>` : ''}${(m.from === currentUser.id || currentUser.role === 'ADMIN') ? `<button type="button" class="btn btn-danger" data-chat="del" data-id="${esc(m.id)}" style="padding:3px 10px; font-size:0.75rem;">Supprimer</button>` : ''}</div>
+      </div>`;
+    }).join('') : `<p style="color:var(--muted); font-size:0.88rem;">${inbox ? 'Aucun message reçu.' : 'Aucun message envoyé.'}</p>`;
+    const all = chatAll().filter(chatIsIn);
+    if (all.length) try { localStorage.setItem(chatSeenKey(), String(Math.max(...all.map(m => m.ts)))); } catch (e) {}
+    refreshTabLabels();
+  }
+  function chatChanged() {
+    if (!currentUser) return;
+    if (currentTab === 'CHAT') renderChat(); else refreshTabLabels();
+  }
+  function chatDetach() { chat.unsubs.forEach(u => { try { u(); } catch (e) {} }); chat.unsubs = []; chat.parts = []; chat.cloud = new Map(); chat.err = ''; }
+  function chatAttach() {
+    chatDetach();
+    const col = sync.db.collection('messages'), u = currentUser;
+    const qs = [col.where('to', '==', 'all'), col.where('to', '==', u.role), col.where('to', '==', u.id), col.where('from', '==', u.id)];
+    chat.parts = qs.map(() => new Map());
+    chat.unsubs = qs.map((q, i) => q.onSnapshot(snap => {
+      const mp = new Map(); snap.forEach(d => mp.set(d.id, { id: d.id, ...d.data() }));
+      chat.parts[i] = mp; chat.err = '';
+      chat.cloud = new Map(); chat.parts.forEach(p => p.forEach((v, k) => chat.cloud.set(k, v)));
+      chatChanged();
+    }, err => { chat.err = (err && err.message) || 'erreur'; chatChanged(); }));
+  }
+  async function chatSend() {
+    const sel = document.getElementById('chatTo'), ta = document.getElementById('chatText');
+    const text = ta.value.trim(); if (!sel.value || !text) return;
+    const m = { from: currentUser.id, fromNom: currentUser.nom, fromRole: currentUser.role, to: sel.value, toNom: sel.selectedOptions[0].textContent, text: text.slice(0, 1000), ts: Date.now() };
+    try {
+      if (isCloud()) {
+        if (!sync.db) return showAlert('Connexion au serveur en cours ou absente : réessayez dans un instant.');
+        await sync.db.collection('messages').add(m);
+      } else { m.id = 'm_' + Date.now() + '_' + Math.floor(Math.random() * 1000); appState.messages.push(m); saveState(false); }
+      ta.value = ''; document.getElementById('chatCount').textContent = '';
+      chat.view = 'out'; renderChat();
+    } catch (err) { showAlert('Envoi impossible : ' + ((err && err.message) || '')); }
+  }
+  document.getElementById('chatSend').addEventListener('click', chatSend);
+  document.getElementById('chatText').addEventListener('input', e => { document.getElementById('chatCount').textContent = e.target.value.length + ' / 1000'; });
+  document.getElementById('chatTabIn').addEventListener('click', () => { chat.view = 'in'; renderChat(); });
+  document.getElementById('chatTabOut').addEventListener('click', () => { chat.view = 'out'; renderChat(); });
+  document.getElementById('chatList').addEventListener('click', async (e) => {
+    const act = e.target.dataset.chat; if (!act) return;
+    const m = chatAll().find(x => x.id === e.target.dataset.id); if (!m) return;
+    if (act === 'reply') {
+      renderChat({ v: m.from, l: m.fromNom + ' (' + ((ROLES[m.fromRole] || {}).label || '') + ')' });
+      document.getElementById('chatText').focus(); window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (act === 'del' && confirm('Supprimer ce message ?')) {
+      try {
+        if (isCloud()) await sync.db.collection('messages').doc(m.id).delete();
+        else { appState.messages = appState.messages.filter(x => x.id !== m.id); saveState(false); renderChat(); }
+      } catch (err) { showAlert('Suppression impossible : ' + ((err && err.message) || '')); }
+    }
+  });
+
+  const TAB_ORDER = ['DASH', 'NOTES', 'BULLETIN', 'RESULTS', 'PRESENCE', 'EDT', 'CARTES', 'CONFIG', 'FINANCES', 'PAIE', 'RELEVE', 'MSG', 'CHAT', 'ARCHIVES', 'USERS'];
   const TABS = {
     DASH:     { label: () => 'Tableau de bord', allowed: () => can('dashboard') },
     NOTES:    { label: () => can('notes_edit') ? 'Saisie des notes' : 'Consultation des notes', allowed: () => can('notes_view') || can('notes_edit') },
@@ -2620,6 +2738,7 @@ return r('./index');})();
     FINANCES: { label: () => (can('fin_view') || can('fin_edit')) ? 'Scolarité & paie' : 'Scolarité', allowed: () => can('fin_view') || can('fin_edit') || can('fin_own') },
     PAIE:     { label: () => 'Paie du personnel', allowed: () => can('fin_view') || can('fin_edit') || can('config') },
     MSG:      { label: () => 'Messages aux parents', allowed: () => can('fin_view') || can('fin_edit') || can('config') },
+    CHAT:     { label: () => 'Messagerie' + (chatUnread() ? ` (${chatUnread()})` : ''), allowed: () => can('chat') },
     RELEVE:   { label: () => 'Relevé de paiements', allowed: () => can('fin_view') || can('fin_edit') || can('fin_own') },
     ARCHIVES: { label: () => 'Archives', allowed: () => can('config') || can('fin_view') },
     USERS:    { label: () => 'Comptes & accès' + (can('users') && appState.users.some(u => u.statut === 'attente') ? ` (${appState.users.filter(u => u.statut === 'attente').length})` : ''), allowed: () => can('users') }
@@ -2762,6 +2881,7 @@ return r('./index');})();
   function logout() {
     if (typeof cloudSignOut === 'function') cloudSignOut();
     currentUser = null;
+    chat.lastTab = ''; document.getElementById('chatTo').innerHTML = '';
     try { sessionStorage.removeItem(SESSION_KEY); } catch (e) {}
     document.getElementById('loginUser').value = '';
     document.getElementById('loginPass').value = '';
@@ -2788,7 +2908,7 @@ return r('./index');})();
 
   function updateContextBar() {
     const viewer = isViewerOnly();
-    const show = !!currentTab && currentTab !== 'USERS' && currentTab !== 'PRESENCE' && currentTab !== 'PAIE' && currentTab !== 'CARTES' && currentTab !== 'EDT' && currentTab !== 'RELEVE' && currentTab !== 'MSG' && currentTab !== 'ARCHIVES' && !(viewer && currentTab === 'FINANCES');
+    const show = !!currentTab && currentTab !== 'USERS' && currentTab !== 'PRESENCE' && currentTab !== 'PAIE' && currentTab !== 'CARTES' && currentTab !== 'EDT' && currentTab !== 'RELEVE' && currentTab !== 'MSG' && currentTab !== 'CHAT' && currentTab !== 'ARCHIVES' && !(viewer && currentTab === 'FINANCES');
     document.getElementById('contextBar').classList.toggle('hidden', !show);
     document.getElementById('classeBox').classList.toggle('hidden', viewer);
     document.getElementById('cycleBox').classList.toggle('hidden', viewer);
@@ -4428,6 +4548,7 @@ return r('./index');})();
     ['Matières, classes et emplois du temps', [['CONFIG', '⚙️', 'Matières et classes'], ['EDT', '🗓️', 'Emplois du temps'], ['PRESENCE', '✅', 'Contrôle de présence']]],
     ['Saisie des notes et bulletins', [['NOTES', '📝', 'Saisie des notes'], ['BULLETIN', '📄', 'Bulletins de notes'], ['RESULTS', '🏆', 'Résultats par classe']]],
     ['Scolarité et paie', [['FINANCES', '💰', 'Scolarité et recouvrement'], ['RELEVE', '🧾', 'Relevé de scolarité'], ['MSG', '💬', 'Messages aux parents'], ['PAIE', '👨‍🏫', 'Paie du personnel']]],
+    ['Communication', [['CHAT', '✉️', 'Messagerie']]],
     ['Administration', [['USERS', '🔐', 'Comptes et accès'], ['ARCHIVES', '🗄️', 'Archives']]]
   ];
   function renderTiles() {
@@ -4619,8 +4740,10 @@ return r('./index');})();
     if (currentTab === 'FINANCES') renderFinances();
     if (currentTab === 'RELEVE') renderReleve();
     if (currentTab === 'MSG') renderMsg();
+    if (currentTab === 'CHAT') renderChat();
     if (currentTab === 'PAIE') renderPaie();
     if (currentTab === 'ARCHIVES') renderArchives();
+    chat.lastTab = currentTab;
   }
 
   // Attachement propre des événements (addEventListener)
@@ -5625,7 +5748,7 @@ let pendingPhoto = null;
   }
   function cloudSignOut() {
     if (!isCloud()) return;
-    try { if (sync.unsub) sync.unsub(); if (sync.unsubProf) sync.unsubProf(); } catch (e) {}
+    try { if (sync.unsub) sync.unsub(); if (sync.unsubProf) sync.unsubProf(); chatDetach(); } catch (e) {}
     sync.unsub = null; sync.unsubProf = null; sync.db = null; sync.profReady = false; sync.profJ = {}; sync.remote = new Map(); sync.first = true;
     clearTimeout(sync.retry);
     syncStatus('off');
@@ -5715,6 +5838,7 @@ let pendingPhoto = null;
         runReconcile();
       }, err => syncStatus('error', err && err.message));
       if (isCloud() && currentUser.role === 'ADMIN') attachProfiles();
+      if (isCloud() && can('chat')) chatAttach();
     } catch (err) {
       sync.db = null;
       syncStatus(navigator.onLine ? 'error' : 'offline', err && err.message);
