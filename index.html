@@ -331,6 +331,7 @@
     </div>
     <div class="user-box">
       <div class="user-info"><strong id="userName"></strong><span id="userRole"></span></div>
+      <button type="button" class="btn btn-light hidden" id="btnChatBell" aria-label="Messages non lus" style="position:relative; padding:6px 10px;">✉️<span id="chatBellCount" style="position:absolute; top:-6px; right:-6px; background:#dc2626; color:#fff; border-radius:999px; min-width:18px; height:18px; font-size:0.7rem; line-height:18px; text-align:center; font-weight:700; padding:0 4px;"></span></button>
       <button type="button" class="btn btn-light hidden" id="btnInstallApp">📲 Installer</button>
       <button type="button" class="btn btn-light" id="btnLogout">Déconnexion</button>
     </div>
@@ -2677,6 +2678,15 @@ return r('./index');})();
     if (all.length) try { localStorage.setItem(chatSeenKey(), String(Math.max(...all.map(m => m.ts)))); } catch (e) {}
     refreshTabLabels();
   }
+  function chatBadge() {
+    const n = (currentUser && can('chat')) ? chatUnread() : 0;
+    const b = document.getElementById('btnChatBell');
+    b.classList.toggle('hidden', !n);
+    document.getElementById('chatBellCount').textContent = n > 99 ? '99+' : n;
+    try { if (n && navigator.setAppBadge) navigator.setAppBadge(n); else if (navigator.clearAppBadge) navigator.clearAppBadge(); } catch (e) {}
+    document.title = (n ? '(' + n + ') ' : '') + document.title.replace(/^\(\d+\) /, '');
+  }
+  document.getElementById('btnChatBell').addEventListener('click', () => setTab('CHAT'));
   function chatChanged() {
     if (!currentUser) return;
     if (currentTab === 'CHAT') renderChat(); else refreshTabLabels();
@@ -2904,6 +2914,7 @@ return r('./index');})();
 
   function refreshTabLabels() {
     TAB_ORDER.forEach(t => { document.getElementById('tab_' + t).textContent = TABS[t].label(); });
+    chatBadge();
   }
 
   function updateContextBar() {
@@ -4289,7 +4300,8 @@ return r('./index');})();
       loginTitle: dd.titre || 'GESTION SCOLAIRE'
     };
     Object.keys(T).forEach(id => { const el = document.getElementById(id); if (el && el.textContent !== T[id]) el.textContent = T[id]; });
-    const wt = (dd.titre || 'GESTION SCOLAIRE') + ' – ' + sn;
+    const un = chatUnread();
+    const wt = (un ? '(' + un + ') ' : '') + (dd.titre || 'GESTION SCOLAIRE') + ' – ' + sn;
     if (document.title !== wt) document.title = wt;
   }
   new MutationObserver(applySchoolName).observe(document.body, { childList: true, subtree: true });
