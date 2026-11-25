@@ -737,10 +737,12 @@
     <div class="card" id="paieEtat">
       <div class="flex-between no-print" style="gap:12px; flex-wrap:wrap; margin-bottom: 0.75rem;">
         <div><label for="paieMois">Mois</label><select id="paieMois"></select></div>
+        <small class="no-print" style="color:var(--muted); max-width:360px;">Enseignant payé à l'heure : les heures du mois sont calculées automatiquement à partir de son emploi du temps (grisées). Saisissez une valeur pour la remplacer, par exemple en cas de jour férié.</small>
         <button type="button" class="btn btn-primary" id="btnPrintEtat">Imprimer l'état de paie</button>
       </div>
+      <div id="paieLogoHead"></div>
       <div class="text-center" style="text-align:center; margin-bottom: 0.5rem;">
-        <h2 style="font-size: 1.2rem; color: var(--primary-dark);"><span class="school-name">GROUPE SCOLAIRE EXCELLENCE</span></h2>
+        <h2 style="display:none;"><span class="school-name">GROUPE SCOLAIRE EXCELLENCE</span></h2>
         <p style="font-size: 0.8rem;" id="paieContact"></p>
         <div class="bulletin-title" style="margin-top: 0.5rem; padding: 4px;" id="paieTitre"></div>
       </div>
@@ -915,6 +917,7 @@
         </div>
         <button type="button" class="btn btn-primary" id="btnPrintEdt">Imprimer</button>
       </div>
+      <div id="edtHead"></div>
       <h2 style="font-size: 1.05rem; text-align:center; margin-bottom: 0.5rem;" id="edtTitle"></h2>
       <div style="overflow-x:auto;"><table id="edtTable"></table></div>
       <div class="no-print" id="edtList" style="margin-top: 1rem;"></div>
@@ -3151,8 +3154,7 @@ return r('./index');})();
       document.getElementById('bTel').textContent = dir.telephone || '—';
       document.getElementById('bMail').textContent = dir.email || '—'; }
     document.getElementById('bNom').textContent = student.nom;
-    { const bh = document.querySelector('#bulletinPrintArea .bulletin-header'), lg = (appState.direction || {}).logo;
-      if (bh) { bh.querySelectorAll('.b-logo').forEach(x => x.remove()); if (lg) { const h = `<div class="b-logo"><img src="${lg}" alt="" /></div>`; bh.insertAdjacentHTML('afterbegin', h); bh.insertAdjacentHTML('beforeend', h); } } }
+    syncLogos();
     document.getElementById('bPhoto').innerHTML = photoOf(student) ? `<img src="${photoOf(student)}" alt="" style="width:100%;height:100%;object-fit:cover;" />` : 'Photo';
     document.getElementById('bMatricule').textContent = student.matricule;
     document.getElementById('bAbsences').textContent = `${student.absences} heure(s)`;
@@ -3301,7 +3303,7 @@ return r('./index');})();
       const pm = Math.max(0, moisIndexNow());
       document.getElementById('paieSummaryTitle').textContent = MOIS[pm] + ' ' + moisYear(pm) + ' — détail dans l\'onglet « Paie du personnel »';
       document.getElementById('paieSummaryBody').innerHTML = appState.employes.map(e => {
-        const r = paieRec(pm, e.id), c = paieCalc(e, r);
+        const r = paieRec(pm, e.id), c = paieCalc(e, r, pm);
         const detail = e.type === 'HORAIRE' ? `${c.hTrav} h × ${formatGNF(c.taux)}` : 'Salaire mensuel';
         return `<tr><td><strong>${esc(e.nom)}</strong><br><small>${esc(e.matiere || e.fonction || '')}</small></td><td>${detail}</td><td class="text-right"><strong>${formatGNF(c.net)}</strong></td><td class="text-center"><span class="badge ${r.paye ? 'badge-ok' : 'badge-warn'}">${r.paye ? 'Payé' : 'En attente'}</span></td></tr>`;
       }).join('') || '<tr><td colspan="4" style="color:var(--muted);">Aucun employé.</td></tr>';
@@ -3988,6 +3990,7 @@ return r('./index');})();
     document.getElementById('edtMatList').innerHTML = (appState.subjects[fc.value] || []).map(m => `<option value="${esc(m.nom)}"></option>`).join('');
     // grille
     const list = appState.edt.filter(x => edtMode === 'classe' ? x.classe === edtTarget : x.profId === edtTarget);
+    document.getElementById('edtHead').innerHTML = docHeaderHtml(`<p style="font-size:0.85rem; margin-top:0.7rem;">${edtMode === 'classe' ? 'Classe' : 'Enseignant'} : <strong>${esc(edtMode === 'classe' ? edtTarget : profName(edtTarget))}</strong></p>`);
     document.getElementById('edtTitle').textContent = 'Emploi du temps — ' + (edtMode === 'classe' ? edtTarget : profName(edtTarget));
     const slots = [...new Map(list.map(x => [x.debut + '-' + x.fin, { d: x.debut, f: x.fin }])).values()].sort((a, b) => toMin(a.d) - toMin(b.d) || toMin(a.f) - toMin(b.f));
     document.getElementById('edtTable').innerHTML = slots.length
@@ -4041,10 +4044,23 @@ return r('./index');})();
   const paieRec = (mi, id) => ((appState.paie[mi] || {})[id]) || {};
   const num = v => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
   const blank = v => v === undefined || v === null || v === '';
-  function paieCalc(emp, rec) {
+  // Heures prévues au mois = heures de l'emploi du temps de l'enseignant × nombre de jours correspondants dans le mois
+  function paieHeuresEdt(emp, mi) {
+    const m = (9 + mi) % 12, y = moisYear(mi), nom = String(emp.nom || '').trim().toLowerCase();
+    const mine = (appState.edt || []).filter(x => (emp.userId && x.profId === emp.userId) || (nom && String(profName(x.profId)).trim().toLowerCase() === nom));
+    if (!mine.length) return 0;
+    let tot = 0;
+    for (let d = 1, n = new Date(y, m + 1, 0).getDate(); d <= n; d++) {
+      const dow = new Date(y, m, d).getDay();
+      mine.forEach(x => { if (x.jour === dow) tot += Math.max(0, toMin(x.fin) - toMin(x.debut)) / 60; });
+    }
+    return Math.round(tot * 100) / 100;
+  }
+  function paieCalc(emp, rec, mi) {
     const taux = emp.type === 'HORAIRE' ? num(emp.montant) : num(emp.tauxHoraire);
-    const hTrav = num(rec.heures);
-    const hPrev = blank(rec.heuresPrevues) ? hTrav : num(rec.heuresPrevues);
+    const auto = emp.type === 'HORAIRE' ? paieHeuresEdt(emp, mi === undefined ? paieMois : mi) : 0;
+    const hTrav = blank(rec.heures) ? auto : num(rec.heures);
+    const hPrev = blank(rec.heuresPrevues) ? (emp.type === 'HORAIRE' ? auto : hTrav) : num(rec.heuresPrevues);
     const hs = num(rec.hsHeures), hsPct = blank(emp.hsPct) ? 25 : num(emp.hsPct);
     const base = emp.type === 'HORAIRE' ? Math.round(taux * hTrav) : num(emp.montant);
     const montantHS = Math.round(hs * taux * (1 + hsPct / 100));
@@ -4052,7 +4068,7 @@ return r('./index');})();
     const brut = base + montantHS + prime + indem;
     const cot = blank(rec.cotisation) ? num(emp.cotisation) : num(rec.cotisation), ton = blank(rec.tontine) ? num(emp.tontine) : num(rec.tontine), av = num(rec.avance) + num(rec.retenues);
     const ret = cot + ton + av;
-    return { taux, hPrev, hTrav, hs, hsPct, base, montantHS, prime, indem, brut, cot, ton, av, ret, net: brut - ret };
+    return { auto, taux, hPrev, hTrav, hs, hsPct, base, montantHS, prime, indem, brut, cot, ton, av, ret, net: brut - ret };
   }
   function photoOfEmp(e) { return ((appState.photos || {})[String(e.matricule || '').trim().toLowerCase()]) || e.photo || ''; }
   function paieCanEdit() { return can('fin_edit') || can('config'); }
@@ -4062,7 +4078,8 @@ return r('./index');})();
     document.getElementById('paieMois').innerHTML = MOIS.map((m, i) => `<option value="${i}">${m} ${moisYear(i)}</option>`).join('');
     document.getElementById('paieMois').value = paieMois;
     const dir = appState.direction || {};
-    document.getElementById('paieContact').textContent = `Tél : ${dir.telephone || '—'} • E-mail : ${dir.email || '—'}`;
+    document.getElementById('paieContact').textContent = '';
+    document.getElementById('paieLogoHead').innerHTML = docHeaderHtml(`<p style="font-size:0.85rem; margin-top:0.7rem;">Mois : <strong>${MOIS[paieMois]} ${moisYear(paieMois)}</strong></p>`);
     document.getElementById('paieTitre').textContent = `État de paie du personnel — ${MOIS[paieMois]} ${moisYear(paieMois)}`;
     const ef = (e, f, w, type) => `<input type="${type || 'text'}" value="${esc(e[f] === undefined ? '' : e[f])}" data-efield="${f}" data-eid="${esc(e.id)}" style="width:${w}px;" />`;
     document.getElementById('empBody').innerHTML = appState.employes.map(e => `<tr>
@@ -4077,12 +4094,12 @@ return r('./index');})();
       <td class="text-right"><button type="button" class="btn btn-danger" data-edel="${esc(e.id)}" style="padding:3px 8px; font-size:0.72rem;">Retirer</button></td></tr>`).join('') || '<tr><td colspan="15" style="color:var(--muted);">Aucun employé.</td></tr>';
     document.getElementById('paieHead').innerHTML = `<tr><th>Employé</th><th>Fonction</th><th class="text-center">H. prévues</th><th class="text-center">H. travaillées</th><th class="text-center">H. sup.</th><th class="text-right">Prime</th><th class="text-right">Indemnité</th><th class="text-right">Cotisation</th><th class="text-right">Tontine</th><th class="text-right">Avance</th><th class="text-right">Salaire brut</th><th class="text-right">Net à payer</th><th class="text-center">Payé</th><th class="no-print"></th></tr>`;
     let tBrut = 0, tNet = 0;
-    const inp = (id, f, v, w, step) => canEdit ? `<input type="number" min="0" step="${step || 1}" value="${blank(v) ? '' : v}" data-prec="${f}" data-eid="${esc(id)}" style="width:${w}px; text-align:right;" />` : formatGNF(num(v));
+    const inp = (id, f, v, w, step, ph) => canEdit ? `<input type="number" min="0" step="${step || 1}" value="${blank(v) ? '' : v}" ${ph ? `placeholder="${ph}"` : ''} data-prec="${f}" data-eid="${esc(id)}" style="width:${w}px; text-align:right;" />` : formatGNF(ph ? num(v) || num(ph) : num(v));
     document.getElementById('paieBody').innerHTML = appState.employes.map(e => {
       const r = paieRec(paieMois, e.id), c = paieCalc(e, r); tBrut += c.brut; tNet += c.net;
       return `<tr><td><strong>${esc(e.nom)}</strong><br><small style="color:var(--muted)">${esc(e.matricule)}</small></td><td>${esc(e.fonction)}</td>
-        <td class="text-center">${inp(e.id, 'heuresPrevues', r.heuresPrevues, 62, 0.5)}</td>
-        <td class="text-center">${inp(e.id, 'heures', r.heures, 62, 0.5)}</td>
+        <td class="text-center">${inp(e.id, 'heuresPrevues', r.heuresPrevues, 62, 0.5, c.auto || '')}</td>
+        <td class="text-center">${inp(e.id, 'heures', r.heures, 62, 0.5, c.auto || '')}</td>
         <td class="text-center">${inp(e.id, 'hsHeures', r.hsHeures, 55, 0.5)}</td>
         <td class="text-right">${inp(e.id, 'primes', r.primes, 90)}</td>
         <td class="text-right">${inp(e.id, 'indemnite', r.indemnite, 90)}</td>
@@ -4176,7 +4193,9 @@ return r('./index');})();
   }
   function printPaie(cls) {
     document.body.classList.add(cls);
-    const done = () => { document.body.classList.remove(cls); window.removeEventListener('afterprint', done); };
+    let pst = null;
+    if (cls === 'print-recouv') { pst = document.createElement('style'); pst.textContent = '@page { size: A4 landscape; margin: 8mm; }'; document.head.appendChild(pst); }
+    const done = () => { document.body.classList.remove(cls); if (pst) pst.remove(); window.removeEventListener('afterprint', done); };
     window.addEventListener('afterprint', done);
     window.print();
   }
@@ -4300,6 +4319,7 @@ return r('./index');})();
       loginTitle: dd.titre || 'GESTION SCOLAIRE'
     };
     Object.keys(T).forEach(id => { const el = document.getElementById(id); if (el && el.textContent !== T[id]) el.textContent = T[id]; });
+    syncLogos();
     const un = chatUnread();
     const wt = (un ? '(' + un + ') ' : '') + (dd.titre || 'GESTION SCOLAIRE') + ' – ' + sn;
     if (document.title !== wt) document.title = wt;
@@ -4587,13 +4607,27 @@ return r('./index');})();
     document.getElementById('dashTop').innerHTML = html || '<p style="color:var(--muted)">Aucune note saisie.</p>';
   }
 
+  // Logos des en-têtes : entre le bloc de gauche et le titre, et entre le titre et le bloc de droite
+  function syncLogos() {
+    const lg = (appState.direction || {}).logo;
+    document.querySelectorAll('.bulletin-header').forEach(h => {
+      const cur = Array.from(h.children).filter(c => c.classList.contains('b-logo'));
+      const ok = lg ? (cur.length === 2 && cur.every(c => { const im = c.querySelector('img'); return im && im.getAttribute('src') === lg; }) && h.children[1] === cur[0] && h.children[3] === cur[1]) : cur.length === 0;
+      if (ok) return;
+      cur.forEach(c => c.remove());
+      if (!lg || h.children.length !== 3) return;
+      const html = `<div class="b-logo"><img src="${lg}" alt="" /></div>`;
+      h.children[0].insertAdjacentHTML('afterend', html);
+      h.children[h.children.length - 1].insertAdjacentHTML('beforebegin', html);
+    });
+  }
   function docHeaderHtml(rightHtml) {
     const d = appState.direction || {};
     const logo = d.logo ? `<div class="b-logo"><img src="${d.logo}" alt="" /></div>` : '';
-    return `<div class="bulletin-header" style="align-items: flex-start; gap: 8px; margin-bottom: 0.75rem;">${logo}
-      <div style="flex: 1; font-size: 0.8rem; font-weight: 700; line-height: 1.35;"><div>${esc(d.mepu || 'MEPU-A')}</div><div>IRE : ${esc(d.ire || '………………')}</div><div>DCE : ${esc(d.dce || '………………')}</div><div>DSEE : ${esc(d.dsee || '………………')}</div></div>
+    return `<div class="bulletin-header" style="align-items: flex-start; gap: 8px; margin-bottom: 0.75rem;">
+      <div style="flex: 1; font-size: 0.8rem; font-weight: 700; line-height: 1.35;"><div>${esc(d.mepu || 'MEPU-A')}</div><div>IRE : ${esc(d.ire || '………………')}</div><div>DCE : ${esc(d.dce || '………………')}</div><div>DSEE : ${esc(d.dsee || '………………')}</div></div>${logo}
       <div style="flex: 2; text-align: center;"><h2 style="font-size: 1.25rem; color: var(--primary-dark); margin-top: 2px;">${esc(schoolName())}</h2><p style="font-size: 0.8rem;">${esc(d.ville || 'Conakry')} • Année Scolaire ${START_YEAR} - ${START_YEAR + 1}</p><p style="font-size: 0.8rem;">Tél : ${esc(d.telephone || '—')} • E-mail : ${esc(d.email || '—')}</p></div>
-      <div class="text-right" style="flex: 1;"><p style="font-weight: 800; font-size: 0.85rem;">REPUBLIQUE DE GUINEE</p><p style="font-weight: 800; font-size: 0.78rem;"><span style="color:#ce1126;">Travail</span>-<span style="color:#e6b800;">Justice</span>-<span style="color:#009460;">Solidarité</span></p>${rightHtml || ''}</div>${logo}</div>`;
+      ${logo}<div class="text-right" style="flex: 1;"><p style="font-weight: 800; font-size: 0.85rem;">REPUBLIQUE DE GUINEE</p><p style="font-weight: 800; font-size: 0.78rem;"><span style="color:#ce1126;">Travail</span>-<span style="color:#e6b800;">Justice</span>-<span style="color:#009460;">Solidarité</span></p>${rightHtml || ''}</div></div>`;
   }
   // ===== Messages aux parents (WhatsApp depuis l'ordinateur) =====
   function arrieres(st) {
@@ -4715,15 +4749,17 @@ return r('./index');})();
     const onlyDue = document.getElementById('recouvStatut').value === 'due';
     let list = (sel.value ? appState.students.filter(x => x.classe === sel.value) : appState.students).slice().sort((a, b) => String(a.classe).localeCompare(String(b.classe)) || String(a.nom).localeCompare(String(b.nom)));
     if (onlyDue) list = list.filter(x => resteTotal(x) > 0);
-    let tD = 0, tP = 0, tR = 0;
+    let tD = 0, tP = 0, tR = 0; const tM = MOIS.map(() => 0);
+    const MC = 'font-size:0.68rem; padding:4px 3px; white-space:nowrap;';
     const full = st => [st.prenom, st.nomFamille].filter(Boolean).join(' ') || st.nom;
     const body = list.map((st, i) => { const du = feeDue(st), pa = feePaid(st), re = resteTotal(st); tD += du; tP += pa; tR += re;
-      return `<tr><td class="text-center">${i + 1}</td><td>${esc(st.matricule)}</td><td><strong>${esc(full(st))}</strong></td><td>${esc(st.classe)}</td><td class="text-right">${formatGNF(du)}</td><td class="text-right">${formatGNF(pa)}</td><td class="text-right">${formatGNF(re)}</td><td class="text-center">${du ? Math.round(pa / du * 100) : 0} %</td><td class="text-center">${re === 0 ? 'Soldé' : 'Reste à payer'}</td><td class="text-center no-print">${waLink(st) ? `<a href="${waLink(st)}" target="_blank" rel="noopener" class="btn btn-outline" style="padding:3px 8px; font-size:0.72rem; text-decoration:none;">WhatsApp</a>` : '—'}</td></tr>`; }).join('');
+      const mc = MOIS.map((m, k) => { const v = moisPaye(st, k), due = feesOf(st.classe).mensualite; tM[k] += v; return `<td class="text-right" style="${MC}${due > 0 && v < due ? 'color:#b91c1c;' : ''}">${v ? formatGNF(v) : '—'}</td>`; }).join('');
+      return `<tr><td class="text-center">${i + 1}</td><td>${esc(st.matricule)}</td><td><strong>${esc(full(st))}</strong></td><td>${esc(st.classe)}</td><td class="text-right">${formatGNF(du)}</td>${mc}<td class="text-right">${formatGNF(pa)}</td><td class="text-right">${formatGNF(re)}</td><td class="text-center">${du ? Math.round(pa / du * 100) : 0} %</td><td class="text-center">${re === 0 ? 'Soldé' : 'Reste à payer'}</td><td class="text-center no-print">${waLink(st) ? `<a href="${waLink(st)}" target="_blank" rel="noopener" class="btn btn-outline" style="padding:3px 8px; font-size:0.72rem; text-decoration:none;">WhatsApp</a>` : '—'}</td></tr>`; }).join('');
     const dir = appState.direction || {}, sp = '<div style="height: 34px;"></div>';
     document.getElementById('recouvArea').innerHTML = docHeaderHtml(`<p style="font-size:0.85rem; margin-top:0.7rem;">Classe : <strong>${esc(sel.value || 'Toutes')}</strong></p>`) +
       `<div class="bulletin-title" style="text-align:center; text-transform:uppercase; padding:4px; margin-bottom:0.6rem;">Liste de recouvrement des frais de scolarité${onlyDue ? ' — impayés' : ''}</div>
-      <div style="overflow-x:auto;"><table><thead><tr><th>Nº</th><th>Matricule</th><th>Prénoms et Nom</th><th>Classe</th><th class="text-right">Total dû (GNF)</th><th class="text-right">Total payé (GNF)</th><th class="text-right">Reste à payer (GNF)</th><th>Taux</th><th>Statut</th><th class="no-print">Relance</th></tr></thead><tbody>${body || '<tr><td colspan="10" style="color:var(--muted);">Aucun élève.</td></tr>'}</tbody>
-      <tfoot><tr style="font-weight:800; background:#f2f7f5;"><td colspan="4">TOTAL (${list.length} élève${list.length > 1 ? 's' : ''})</td><td class="text-right">${formatGNF(tD)}</td><td class="text-right">${formatGNF(tP)}</td><td class="text-right">${formatGNF(tR)}</td><td class="text-center">${tD ? Math.round(tP / tD * 100) : 0} %</td><td></td></tr></tfoot></table></div>
+      <div style="overflow-x:auto;"><table><thead><tr><th>Nº</th><th>Matricule</th><th>Prénoms et Nom</th><th>Classe</th><th class="text-right">Total dû (GNF)</th>${['Oct', 'Nov', 'Déc', 'Janv', 'Fév', 'Mars', 'Avr', 'Mai', 'Juin'].map(m => `<th class="text-right" style="${MC}">${m}</th>`).join('')}<th class="text-right">Total payé (GNF)</th><th class="text-right">Reste à payer (GNF)</th><th>Taux</th><th>Statut</th><th class="no-print">Relance</th></tr></thead><tbody>${body || '<tr><td colspan="19" style="color:var(--muted);">Aucun élève.</td></tr>'}</tbody>
+      <tfoot><tr style="font-weight:800; background:#f2f7f5;"><td colspan="4">TOTAL (${list.length} élève${list.length > 1 ? 's' : ''})</td><td class="text-right">${formatGNF(tD)}</td>${tM.map(v => `<td class="text-right" style="${MC}">${formatGNF(v)}</td>`).join('')}<td class="text-right">${formatGNF(tP)}</td><td class="text-right">${formatGNF(tR)}</td><td class="text-center">${tD ? Math.round(tP / tD * 100) : 0} %</td><td></td></tr></tfoot></table></div>
       <p style="font-size:0.78rem; margin-top:0.4rem;">Édité le ${new Date().toLocaleDateString('fr-FR')}</p>
       <div style="display:flex; margin-top:0.6rem; font-size:0.85rem; align-items:flex-start;"><div style="text-align:center; flex:1;"><strong>Le Comptable</strong>${sp}<span>${esc(dir.comptable || '')}</span></div><div style="text-align:center; flex:1;"><strong>Le Directeur Général</strong>${sp}<span>${esc(dir.general || '')}</span></div></div>`;
   }
