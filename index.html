@@ -199,6 +199,9 @@
     .tile .ic { display: block; font-size: 2.1rem; margin-bottom: .35rem; }
     .b-logo { flex: none; width: 84px; display: flex; align-items: flex-start; justify-content: center; margin-top: 12px; }
     .b-logo img { max-height: 80px; max-width: 84px; object-fit: contain; }
+    .bulletin-header > :first-child, .bulletin-header > :last-child { white-space: nowrap; flex: 0 0 auto !important; }
+    .bulletin-header > :first-child div, .bulletin-header > :last-child p { white-space: nowrap; }
+    .b-logo { width: 76px; }
     .bulletin-header > .b-logo:nth-child(2) { transform: translateX(-14px); }
     .bulletin-header > .b-logo:nth-child(4) { transform: translateX(14px); }
     body.print-recouv #sec_FINANCES > *:not(#recouvCard) { display: none !important; }
@@ -3157,13 +3160,13 @@ return r('./index');})();
 
   function renderAnnualTable(student, bul, cycle, bHead, bBody, bFoot) {
     const periods = PERIODS[cycle];
-    bHead.innerHTML = `<tr><th>Matières</th>${periods.map(p => `<th class="text-center">${p.label}</th>`).join('')}<th class="text-center">Moyenne annuelle</th><th class="text-center">Coef</th><th class="text-right">Moy. Pondérée</th><th>Appréciation</th></tr>`;
+    bHead.innerHTML = `<tr><th>Matières</th>${periods.map(p => `<th class="text-center">${p.label}</th>`).join('')}<th class="text-center">Moyenne annuelle</th><th class="text-center">Coef</th><th class="text-center">Moy. Pondérée</th><th>Appréciation</th></tr>`;
     bBody.innerHTML = bul.rows.map(r => `<tr>
       <td><strong>${esc(r.nom)}</strong></td>
       ${periods.map(p => `<td class="text-center">${rawNote(student, p.id, r.id) ? getSubjectNote(student, r.id, cycle, p.id).moy.toFixed(2) : '—'}</td>`).join('')}
       <td class="text-center"><strong>${r.moy.toFixed(2)}</strong></td>
       <td class="text-center">${r.coef}</td>
-      <td class="text-right"><strong>${r.pts.toFixed(2)}</strong></td>
+      <td class="text-center"><strong>${r.pts.toFixed(2)}</strong></td>
       <td>${getMention(r.moy, cycle)}</td>
     </tr>`).join('');
     const gens = periods.map(p => hasPeriodData(student, p.id) ? computeStudentBulletin(student, cycle, p.id).moyGen.toFixed(2) : '—');
@@ -3172,7 +3175,7 @@ return r('./index');})();
       ${gens.map(g => `<td class="text-center">${g}</td>`).join('')}
       <td class="text-center">${bul.moyGen.toFixed(2)}</td>
       <td class="text-center">${bul.totalCoef}</td>
-      <td class="text-right">${bul.totalPoints.toFixed(2)}</td>
+      <td class="text-center">${bul.totalPoints.toFixed(2)}</td>
       <td></td>
     </tr>`;
   }
@@ -3258,35 +3261,35 @@ return r('./index');})();
     if (appState.periode === 'AN') {
       renderAnnualTable(student, bul, cycle, bHead, bBody, bFoot);
     } else if (cycle === 'PRIMAIRE') {
-      bHead.innerHTML = `<tr><th>Matières</th><th class="text-center">Note (/10)</th><th class="text-center">Coef</th><th class="text-right">Points Pondérés</th><th>Appréciation</th></tr>`;
+      bHead.innerHTML = `<tr><th>Matières</th><th class="text-center">Note (/10)</th><th class="text-center">Coef</th><th class="text-center">Points Pondérés</th><th>Appréciation</th></tr>`;
       bBody.innerHTML = bul.rows.map(r => `<tr>
         <td><strong>${r.nom}</strong></td>
         <td class="text-center">${r.moy.toFixed(2)}</td>
         <td class="text-center">${r.coef}</td>
-        <td class="text-right"><strong>${r.pts.toFixed(2)}</strong></td>
+        <td class="text-center"><strong>${r.pts.toFixed(2)}</strong></td>
         <td>${getMention(r.moy, cycle)}</td>
       </tr>`).join('');
       bFoot.innerHTML = `<tr style="background:#f8fafc; font-weight:800;">
         <td colspan="2" class="text-right">TOTAUX :</td>
         <td class="text-center">${bul.totalCoef}</td>
-        <td class="text-right">${bul.totalPoints.toFixed(2)}</td>
+        <td class="text-center">${bul.totalPoints.toFixed(2)}</td>
         <td></td>
       </tr>`;
     } else {
-      bHead.innerHTML = `<tr><th>Matières</th><th class="text-center">Cours (/20)</th><th class="text-center">Compo (/20)</th><th class="text-center">Moyenne (/20)</th><th class="text-center">Coef</th><th class="text-right">Moy. Pondérée</th><th>Appréciation</th></tr>`;
+      bHead.innerHTML = `<tr><th>Matières</th><th class="text-center">Cours (/20)</th><th class="text-center">Compo (/20)</th><th class="text-center">Moyenne (/20)</th><th class="text-center">Coef</th><th class="text-center">Moy. Pondérée</th><th>Appréciation</th></tr>`;
       bBody.innerHTML = bul.rows.map(r => `<tr>
         <td><strong>${r.nom}</strong></td>
         <td class="text-center">${r.cours.toFixed(2)}</td>
         <td class="text-center">${r.compo.toFixed(2)}</td>
         <td class="text-center"><strong>${r.moy.toFixed(2)}</strong></td>
         <td class="text-center">${r.coef}</td>
-        <td class="text-right"><strong>${r.pts.toFixed(2)}</strong></td>
+        <td class="text-center"><strong>${r.pts.toFixed(2)}</strong></td>
         <td>${getMention(r.moy, cycle)}</td>
       </tr>`).join('');
       bFoot.innerHTML = `<tr style="background:#f8fafc; font-weight:800;">
         <td colspan="4" class="text-right">TOTAUX :</td>
         <td class="text-center">${bul.totalCoef}</td>
-        <td class="text-right">${bul.totalPoints.toFixed(2)}</td>
+        <td class="text-center">${bul.totalPoints.toFixed(2)}</td>
         <td></td>
       </tr>`;
     }
