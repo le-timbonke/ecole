@@ -197,8 +197,10 @@
     .tile { background: #f4f8f7; border: 1px solid #b9d3cb; border-radius: 10px; padding: .8rem .4rem; text-align: center; cursor: pointer; color: var(--primary-dark); font-size: .8rem; transition: transform .12s, box-shadow .12s, background .12s; }
     .tile:hover { transform: translateY(-3px); background: var(--primary-light); box-shadow: 0 8px 16px rgba(7,59,48,.14); }
     .tile .ic { display: block; font-size: 2.1rem; margin-bottom: .35rem; }
-    .b-logo { flex: none; width: 66px; display: flex; align-items: flex-start; justify-content: center; }
-    .b-logo img { max-height: 62px; max-width: 66px; object-fit: contain; }
+    .b-logo { flex: none; width: 84px; display: flex; align-items: flex-start; justify-content: center; margin-top: 12px; }
+    .b-logo img { max-height: 80px; max-width: 84px; object-fit: contain; }
+    .bulletin-header > .b-logo:nth-child(2) { transform: translateX(-14px); }
+    .bulletin-header > .b-logo:nth-child(4) { transform: translateX(14px); }
     body.print-recouv #sec_FINANCES > *:not(#recouvCard) { display: none !important; }
     .hon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; margin-bottom: 14px; }
     .hon-card { border: 1px solid var(--border); border-radius: 12px; padding: 10px 8px; text-align: center; break-inside: avoid; page-break-inside: avoid; background: #fff; }
@@ -363,6 +365,8 @@
     <button type="button" class="nav-tab" id="tab_CONFIG">Matières &amp; élèves</button>
     <button type="button" class="nav-tab" id="tab_FINANCES">Scolarité &amp; paie</button>
     <button type="button" class="nav-tab" id="tab_PAIE">Paie du personnel</button>
+    <button type="button" class="nav-tab" id="tab_BILAN">Revenu annuel</button>
+    <button type="button" class="nav-tab" id="tab_RECH">Recherche élève</button>
     <button type="button" class="nav-tab" id="tab_RELEVE">Relevé de paiements</button>
     <button type="button" class="nav-tab" id="tab_MSG">Messages aux parents</button>
     <button type="button" class="nav-tab" id="tab_CHAT">Messagerie</button>
@@ -490,7 +494,7 @@
           </div>
           <p id="bEtatCivil" style="font-size: 0.85rem; margin: 0.4rem 0 0;"></p>
         </div>
-        <div id="bPhoto" style="width: 76px; height: 94px; border: 1px solid #1e293b; display: flex; align-items: center; justify-content: center; overflow: hidden; font-size: 0.65rem; color: var(--muted); flex-shrink: 0;">Photo</div>
+        <div id="bPhoto" style="width: 104px; height: 128px; border: 1px solid #1e293b; display: flex; align-items: center; justify-content: center; overflow: hidden; font-size: 0.65rem; color: var(--muted); flex-shrink: 0;">Photo</div>
       </div>
 
       <table>
@@ -884,6 +888,44 @@
       <div class="print-only" id="resSigB" style="margin-top: 1rem; font-size: 0.85rem;"></div>
     </div>
     <div class="card res-noprint"><h3>Moyennes par matière</h3><div style="overflow-x: auto;"><table><thead id="resSubHead"></thead><tbody id="resSubBody"></tbody></table></div></div>
+  </section>
+
+  <!-- REVENU ANNUEL ET AUTRES DÉPENSES -->
+  <section id="sec_BILAN" class="hidden">
+    <div class="card no-print" id="depCard">
+      <h2 style="font-size: 1.05rem; margin-bottom: 0.25rem;">Autres dépenses</h2>
+      <p style="font-size: 0.82rem; color: var(--muted); margin-bottom: 10px;">Saisissez ici les dépenses de l'école autres que les salaires (les salaires viennent automatiquement de la paie du personnel).</p>
+      <form id="formDep">
+        <div class="form-grid">
+          <div><label for="depDate">Date</label><input type="date" id="depDate" required /></div>
+          <div><label for="depMois">Mois concerné</label><select id="depMois"></select></div>
+          <div><label for="depCat">Catégorie</label><select id="depCat"></select></div>
+          <div><label for="depLib">Libellé</label><input type="text" id="depLib" maxlength="80" placeholder="Ex. Facture d'électricité" /></div>
+          <div><label for="depMontant">Montant (GNF)</label><input type="number" id="depMontant" min="1" step="1" required /></div>
+        </div>
+        <button type="submit" class="btn btn-primary" style="margin-top:8px;">+ Ajouter la dépense</button>
+      </form>
+      <div style="overflow-x:auto; margin-top:12px;"><table><thead><tr><th>Date</th><th>Mois</th><th>Catégorie</th><th>Libellé</th><th class="text-right">Montant (GNF)</th><th></th></tr></thead><tbody id="depBody"></tbody></table></div>
+    </div>
+    <div class="flex-between no-print" style="margin: 1rem 0 0.5rem;">
+      <h2 style="font-size: 1.05rem;">Revenu annuel</h2>
+      <button type="button" class="btn btn-primary no-print" id="btnPrintBilan">Imprimer le revenu annuel</button>
+    </div>
+    <div class="card" id="bilanDoc"></div>
+  </section>
+
+  <!-- RECHERCHE D'UN ÉLÈVE -->
+  <section id="sec_RECH" class="hidden">
+    <div class="card">
+      <h2 style="font-size: 1.05rem; margin-bottom: 0.25rem;">Rechercher un élève</h2>
+      <p style="font-size: 0.82rem; color: var(--muted); margin-bottom: 10px;">Tapez un matricule ou un nom, et/ou choisissez une classe.</p>
+      <div class="form-grid">
+        <div><label for="rechQ">Matricule ou nom</label><input type="search" id="rechQ" placeholder="Ex. 126-002 ou Camara" autocomplete="off" /></div>
+        <div><label for="rechClasse">Classe</label><select id="rechClasse"></select></div>
+      </div>
+      <p id="rechCount" style="font-size:0.82rem; color:var(--muted); margin:10px 0 4px;"></p>
+      <div style="overflow-x:auto;"><table><thead id="rechHead"></thead><tbody id="rechBody"></tbody></table></div>
+    </div>
   </section>
 
   <!-- TABLEAU D'HONNEUR -->
@@ -2487,6 +2529,7 @@ return r('./index');})();
     if (!appState.presenceCfg) appState.presenceCfg = { n: 2, labels: ['Matin', 'Après-midi'] };
     if (!appState.presence) appState.presence = {};
     if (!appState.paie) appState.paie = {};
+    if (!appState.depenses || Array.isArray(appState.depenses)) appState.depenses = {};
     if (!Array.isArray(appState.employes)) appState.employes = [
       { id: 'm1', nom: 'M. Soumah', fonction: 'Enseignant', type: 'HORAIRE', montant: 45000 },
       { id: 'm2', nom: 'Mme Barry', fonction: 'Enseignant', type: 'MENSUEL', montant: 1850000 },
@@ -2779,7 +2822,7 @@ return r('./index');})();
     }
   });
 
-  const TAB_ORDER = ['DASH', 'NOTES', 'BULLETIN', 'RESULTS', 'HONNEUR', 'PRESENCE', 'EDT', 'CARTES', 'CONFIG', 'FINANCES', 'PAIE', 'RELEVE', 'MSG', 'CHAT', 'ARCHIVES', 'USERS'];
+  const TAB_ORDER = ['DASH', 'NOTES', 'BULLETIN', 'RESULTS', 'HONNEUR', 'PRESENCE', 'EDT', 'CARTES', 'CONFIG', 'FINANCES', 'PAIE', 'BILAN', 'RECH', 'RELEVE', 'MSG', 'CHAT', 'ARCHIVES', 'USERS'];
   const TABS = {
     DASH:     { label: () => 'Tableau de bord', allowed: () => can('dashboard') },
     NOTES:    { label: () => can('notes_edit') ? 'Saisie des notes' : 'Consultation des notes', allowed: () => can('notes_view') || can('notes_edit') },
@@ -2791,6 +2834,8 @@ return r('./index');})();
     EDT:      { label: () => 'Emplois du temps', allowed: () => !!currentUser },
     CONFIG:   { label: () => 'Matières & élèves', allowed: () => can('config') },
     FINANCES: { label: () => (can('fin_view') || can('fin_edit')) ? 'Scolarité & paie' : 'Scolarité', allowed: () => can('fin_view') || can('fin_edit') || can('fin_own') },
+    BILAN:    { label: () => 'Revenu annuel', allowed: () => can('fin_view') || can('fin_edit') || can('config') },
+    RECH:     { label: () => 'Recherche élève', allowed: () => can('bulletin_all') || can('fin_view') || can('config') },
     PAIE:     { label: () => 'Paie du personnel', allowed: () => can('fin_view') || can('fin_edit') || can('config') },
     MSG:      { label: () => 'Messages aux parents', allowed: () => can('fin_view') || can('fin_edit') || can('config') },
     CHAT:     { label: () => 'Messagerie' + (chatUnread() ? ` (${chatUnread()})` : ''), allowed: () => can('chat') },
@@ -3621,7 +3666,7 @@ return r('./index');})();
       document.getElementById('resMeritTitre').textContent = 'Résultats par matière (notes coefficiées) — ordre de mérite — ' + periodLabel();
       { const dd = appState.direction || {}, cl2 = appState.classes.find(c => c.nom === appState.classe) || {};
         document.getElementById('resSigB').innerHTML = `<div class="flex-between" style="align-items: flex-start;"><div style="text-align:center; flex:1;"><strong>${cycle === 'PRIMAIRE' ? 'Le Maître' : 'Le Professeur Principal'}</strong><div style="height: 34px;"></div><span>${esc(cl2.titulaire || '')}</span></div><div style="text-align:center; flex:1;"><strong>Le Directeur des Études</strong><div style="height: 34px;"></div><span>${esc(dd.etudes || '')}</span></div><div style="text-align:center; flex:1;"><strong>Le Directeur Général</strong><div style="height: 34px;"></div><span>${esc(dd.general || '')}</span></div></div>`; }
-      document.getElementById('resMeritFoot').innerHTML = `<tr style="background:#f8fafc; font-weight:800;"><td colspan="4">Total des coefficients</td>${subs0.map(x => `<td class="text-center">${x.coef}</td>`).join('')}<td class="text-center">${subs0.reduce((a, x) => a + (parseFloat(x.coef) || 0), 0)}</td><td></td><td></td><td></td></tr>`; }
+      document.getElementById('resMeritFoot').innerHTML = ''; }
 
     // Statistiques (F = filles, G = garçons)
     const composed = r => curIdx >= 0 ? r.per[curIdx] !== null : r.per.some(x => x !== null);
@@ -4187,7 +4232,7 @@ return r('./index');})();
     const recu = today.toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }) + ' à ' + today.toLocaleTimeString('fr-FR');
     const g = v => formatGNF(v) + ' GNF';
     const row = (l, v) => `<tr><td>${l}</td><td>${v}</td></tr>`;
-    const logo = dir.logo ? `<img src="${dir.logo}" alt="" style="height:72px;max-width:90px;object-fit:contain;" />` : '<div style="width:72px;"></div>';
+    const logo = dir.logo ? `<img src="${dir.logo}" alt="" style="height:86px;max-width:104px;object-fit:contain;margin-top:10px;" />` : '<div style="width:86px;"></div>';
     const sig = (t, n) => `<div style="flex:1;text-align:${t === 'L\'Employé' ? 'right' : t === 'Le Comptable' ? 'center' : 'left'};"><strong>${t}</strong><div style="height:30px;"></div><span>${n ? esc(n) : '…………………'}</span></div>`;
     box.innerHTML = `
       <div class="no-print" style="text-align:right; margin-bottom:6px; display:flex; gap:8px; justify-content:flex-end; align-items:center; flex-wrap:wrap;">
@@ -4511,7 +4556,7 @@ return r('./index');})();
 
   // ===== Export des documents : PDF, Word, Excel =====
   const EXPORTS = [
-    ['btnPrintBulletin', ['bulletinPrintArea', 'bulletinSecond'], 'Bulletin'], ['btnPrintResults', ['resBlockA'], 'Resultats'], ['btnPrintMerit', ['resBlockB'], 'ResultatsMerite'], ['btnPrintHonneur', ['sec_HONNEUR'], 'TableauHonneur'],
+    ['btnPrintBulletin', ['bulletinPrintArea', 'bulletinSecond'], 'Bulletin'], ['btnPrintResults', ['resBlockA'], 'Resultats'], ['btnPrintMerit', ['resBlockB'], 'ResultatsMerite'], ['btnPrintHonneur', ['sec_HONNEUR'], 'TableauHonneur'], ['btnPrintBilan', ['bilanDoc'], 'RevenuAnnuel'],
     ['btnPrintReleve', ['relevePrintArea', 'releveSecond'], 'Releve'], ['btnPrintEtat', ['paieEtat', 'paieSlip'], 'Paie'],
     ['btnPrintPres', ['sec_PRESENCE'], 'Presence'], ['btnPrintCards', ['cardsGrid'], 'Cartes'], ['btnPrintRecouv', ['recouvArea'], 'Recouvrement'], ['btnPrintEdt', ['sec_EDT'], 'EmploiDuTemps']
   ];
@@ -4637,7 +4682,7 @@ return r('./index');})();
     ['Inscriptions et listes', [['CONFIG', '👤', 'Inscription et liste des élèves'], ['CONFIG', '📥', 'Importer des élèves'], ['CARTES', '🪪', 'Cartes scolaires']]],
     ['Matières, classes et emplois du temps', [['CONFIG', '⚙️', 'Matières et classes'], ['EDT', '🗓️', 'Emplois du temps'], ['PRESENCE', '✅', 'Contrôle de présence']]],
     ['Saisie des notes et bulletins', [['NOTES', '📝', 'Saisie des notes'], ['BULLETIN', '📄', 'Bulletins de notes'], ['RESULTS', '🏆', 'Résultats par classe'], ['HONNEUR', '🏅', "Tableau d'honneur"]]],
-    ['Scolarité et paie', [['FINANCES', '💰', 'Scolarité et recouvrement'], ['RELEVE', '🧾', 'Relevé de scolarité'], ['MSG', '💬', 'Messages aux parents'], ['PAIE', '👨‍🏫', 'Paie du personnel']]],
+    ['Scolarité et paie', [['FINANCES', '💰', 'Scolarité et recouvrement'], ['RELEVE', '🧾', 'Relevé de scolarité'], ['MSG', '💬', 'Messages aux parents'], ['PAIE', '👨‍🏫', 'Paie du personnel'], ['BILAN', '📊', 'Revenu annuel et dépenses'], ['RECH', '🔎', 'Recherche élève']]],
     ['Communication', [['CHAT', '✉️', 'Messagerie']]],
     ['Administration', [['USERS', '🔐', 'Comptes et accès'], ['ARCHIVES', '🗄️', 'Archives']]]
   ];
@@ -4689,6 +4734,97 @@ return r('./index');})();
     if (!t || t === el.dataset.auto) delete appState.honneurCom[el.dataset.k]; else appState.honneurCom[el.dataset.k] = t.slice(0, 160);
     saveState(false);
   });
+
+  // ===== Revenu annuel et autres dépenses =====
+  const DEP_CATS = ['Loyer', 'Eau et électricité', 'Fournitures et matériel', 'Entretien et réparations', 'Transport', 'Communication (téléphone, internet)', 'Impôts et taxes', 'Autres'];
+  function bilanData() {
+    let droitsIns = 0, droitsRe = 0, mens = 0, autresRec = 0;
+    const mensM = MOIS.map(() => 0), salM = MOIS.map(() => 0), depM = MOIS.map(() => 0), cats = {};
+    appState.students.forEach(st => (st.paiements || []).forEach(p => {
+      const m = p.montant || 0;
+      if (p.type === 'DROIT') { if (st.typeInsc === 'REINSCRIPTION') droitsRe += m; else droitsIns += m; }
+      else if (p.type === 'MENSUALITE') { mens += m; if (p.mois >= 0 && p.mois < MOIS.length) mensM[p.mois] += m; }
+      else autresRec += m;
+    }));
+    const upto = moisIndexNow();
+    let sal = 0;
+    for (let i = 0; i <= upto && i < MOIS.length; i++) { appState.employes.forEach(e => { const n = Math.max(0, paieCalc(e, paieRec(i, e.id), i).net); salM[i] += n; sal += n; }); }
+    let autres = 0;
+    Object.values(appState.depenses || {}).forEach(d => { const m = d.montant || 0; autres += m; cats[d.cat] = (cats[d.cat] || 0) + m; if (d.mois >= 0 && d.mois < MOIS.length) depM[d.mois] += m; });
+    const rec = droitsIns + droitsRe + mens + autresRec, dep = sal + autres;
+    return { droitsIns, droitsRe, mens, autresRec, rec, sal, autres, cats, dep, net: rec - dep, mensM, salM, depM };
+  }
+  function renderBilan() {
+    const edit = paieCanEdit();
+    document.getElementById('depCard').classList.toggle('hidden', !edit);
+    const dm = document.getElementById('depMois');
+    if (!dm.options.length) {
+      dm.innerHTML = MOIS.map((m, i) => `<option value="${i}">${m} ${moisYear(i)}</option>`).join(''); dm.value = String(moisIndexNow());
+      document.getElementById('depCat').innerHTML = DEP_CATS.map(c => `<option>${esc(c)}</option>`).join('');
+      document.getElementById('depDate').value = todayISO();
+    }
+    const list = Object.values(appState.depenses || {}).sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    document.getElementById('depBody').innerHTML = list.length ? list.map(d => `<tr><td>${fmtDate(d.date)}</td><td>${esc(MOIS[d.mois] || '')}</td><td>${esc(d.cat)}</td><td>${esc(d.lib || '')}</td><td class="text-right">${formatGNF(d.montant)}</td><td><button type="button" class="btn btn-danger" data-depdel="${esc(d.id)}" style="padding:2px 8px; font-size:0.72rem;">Supprimer</button></td></tr>`).join('') : '<tr><td colspan="6" style="color:var(--muted);">Aucune dépense enregistrée.</td></tr>';
+    const b = bilanData(), row = (l, v, bold) => `<tr style="${bold ? 'font-weight:800; background:#f2f7f5;' : ''}"><td>${l}</td><td class="text-right">${formatGNF(v)}</td></tr>`;
+    const MC = 'font-size:0.72rem; padding:4px 3px; white-space:nowrap;';
+    const mrow = (l, arr, bold) => `<tr style="${bold ? 'font-weight:800; background:#f2f7f5;' : ''}"><td>${l}</td>${arr.map(v => `<td class="text-right" style="${MC}">${formatGNF(v)}</td>`).join('')}<td class="text-right" style="${MC}"><strong>${formatGNF(arr.reduce((a, v) => a + v, 0))}</strong></td></tr>`;
+    const solde = MOIS.map((m, i) => b.mensM[i] - b.salM[i] - b.depM[i]);
+    document.getElementById('bilanDoc').innerHTML = docHeaderHtml(`<p style="font-size:0.85rem; margin-top:0.7rem;">Année scolaire <strong>${START_YEAR} - ${START_YEAR + 1}</strong></p>`) +
+      `<div class="bulletin-title" style="text-align:center; text-transform:uppercase; padding:4px; margin-bottom:0.6rem;">Revenu annuel de l'établissement</div>
+      <table><thead><tr><th>Rubrique</th><th class="text-right">Montant (GNF)</th></tr></thead><tbody>
+        <tr><td colspan="2" style="font-weight:800; color:var(--primary-dark);">RECETTES</td></tr>
+        ${row('Droits d\'inscription', b.droitsIns)}${row('Droits de réinscription', b.droitsRe)}${row('Mensualités de scolarité', b.mens)}${b.autresRec ? row('Autres recettes', b.autresRec) : ''}${row('TOTAL DES RECETTES', b.rec, true)}
+        <tr><td colspan="2" style="font-weight:800; color:var(--primary-dark);">DÉPENSES</td></tr>
+        ${row('Salaires nets du personnel', b.sal)}${Object.keys(b.cats).map(c => row(esc(c), b.cats[c])).join('')}${row('TOTAL DES DÉPENSES', b.dep, true)}
+        <tr style="font-weight:800; background:${b.net >= 0 ? '#e7f6ee' : '#fdecec'};"><td>REVENU ANNUEL NET (${b.net >= 0 ? 'excédent' : 'déficit'})</td><td class="text-right">${formatGNF(b.net)}</td></tr>
+      </tbody></table>
+      <h3 style="font-size:0.95rem; margin:1rem 0 0.4rem;">Détail mensuel</h3>
+      <div style="overflow-x:auto;"><table><thead><tr><th>Rubrique</th>${MOIS.map(m => `<th class="text-right" style="${MC}">${m.slice(0, 4)}</th>`).join('')}<th class="text-right" style="${MC}">Total</th></tr></thead><tbody>
+        ${mrow('Mensualités encaissées', b.mensM)}${mrow('Salaires nets', b.salM)}${mrow('Autres dépenses', b.depM)}${mrow('Solde du mois', solde, true)}
+      </tbody></table></div>
+      <p style="font-size:0.75rem; color:var(--muted); margin-top:6px;">Les salaires sont comptés du début de l'année jusqu'au mois en cours. Édité le ${new Date().toLocaleDateString('fr-FR')}.</p>
+      <div style="display:flex; margin-top:0.8rem; font-size:0.85rem;"><div style="text-align:center; flex:1;"><strong>Le Comptable</strong><div style="height:34px;"></div><span>${esc((appState.direction || {}).comptable || '')}</span></div><div style="text-align:center; flex:1;"><strong>Le Directeur Général</strong><div style="height:34px;"></div><span>${esc((appState.direction || {}).general || '')}</span></div></div>`;
+  }
+  document.getElementById('formDep').addEventListener('submit', (e) => {
+    e.preventDefault(); if (!paieCanEdit()) return;
+    const montant = parseFloat(document.getElementById('depMontant').value);
+    if (!(montant > 0)) return showAlert('Montant invalide.');
+    const id = 'd' + Date.now() + Math.floor(Math.random() * 100);
+    appState.depenses[id] = { id, date: document.getElementById('depDate').value || todayISO(), mois: parseInt(document.getElementById('depMois').value), cat: document.getElementById('depCat').value, lib: document.getElementById('depLib').value.trim(), montant: Math.round(montant) };
+    document.getElementById('depLib').value = ''; document.getElementById('depMontant').value = '';
+    saveState(false); renderBilan();
+  });
+  document.getElementById('depBody').addEventListener('click', (e) => {
+    const id = e.target.dataset.depdel; if (!id || !paieCanEdit() || !confirm('Supprimer cette dépense ?')) return;
+    delete appState.depenses[id]; saveState(false); renderBilan();
+  });
+  document.getElementById('btnPrintBilan').addEventListener('click', () => window.print());
+
+  // ===== Recherche d'un élève =====
+  function renderRech() {
+    const sel = document.getElementById('rechClasse'), keep = sel.value;
+    sel.innerHTML = '<option value="">Toutes les classes</option>' + appState.classes.map(c => `<option value="${esc(c.nom)}">${esc(c.nom)}</option>`).join('');
+    sel.value = Array.from(sel.options).some(o => o.value === keep) ? keep : '';
+    const q = document.getElementById('rechQ').value.trim().toLowerCase(), cl = sel.value, fin = can('fin_view') || can('fin_edit');
+    const full = st => [st.prenom, st.nomFamille].filter(Boolean).join(' ') || st.nom;
+    let list = appState.students.filter(st => (!cl || st.classe === cl) && (!q || (String(st.matricule) + ' ' + full(st) + ' ' + st.nom).toLowerCase().includes(q)));
+    list.sort((a, b) => String(a.classe).localeCompare(String(b.classe)) || String(a.nom).localeCompare(String(b.nom)));
+    document.getElementById('rechCount').textContent = (q || cl) ? list.length + ' élève(s) trouvé(s)' : 'Tapez une recherche ou choisissez une classe. ' + appState.students.length + ' élèves au total.';
+    document.getElementById('rechHead').innerHTML = `<tr><th>Photo</th><th>Matricule</th><th>Prénoms et Nom</th><th>Classe</th><th>Sexe</th><th>Contact parent</th>${fin ? '<th class="text-right">Reste à payer</th>' : ''}<th></th></tr>`;
+    const shown = (q || cl) ? list.slice(0, 100) : [];
+    document.getElementById('rechBody').innerHTML = shown.map(st => { const ph = photoOf(st);
+      return `<tr><td>${ph ? `<img src="${ph}" alt="" style="width:36px;height:46px;object-fit:cover;border-radius:4px;" />` : ''}</td><td><code>${esc(st.matricule)}</code></td><td><strong>${esc(full(st))}</strong></td><td>${esc(st.classe)}</td><td>${st.sexe === 'F' ? 'F' : 'M'}</td><td>${esc(st.contact || '')}</td>${fin ? `<td class="text-right">${formatGNF(resteTotal(st))}</td>` : ''}<td style="white-space:nowrap;"><button type="button" class="btn btn-outline" data-rech="bul" data-id="${esc(st.id)}" style="padding:3px 8px; font-size:0.72rem;">Bulletin</button></td></tr>`; }).join('') || '<tr><td colspan="8" style="color:var(--muted);">' + ((q || cl) ? 'Aucun élève trouvé.' : '') + '</td></tr>';
+  }
+  document.getElementById('sec_RECH').addEventListener('input', renderRech);
+  document.getElementById('sec_RECH').addEventListener('change', (e) => { if (e.target.tagName === 'SELECT') renderRech(); });
+  document.getElementById('rechBody').addEventListener('click', (e) => {
+    if (e.target.dataset.rech !== 'bul') return;
+    const st = appState.students.find(x => String(x.id) === e.target.dataset.id); if (!st) return;
+    appState.classe = st.classe; appState.cycle = classCycle(st.classe) || appState.cycle; saveState(false);
+    initUI(); setTab('BULLETIN');
+    const sl = document.getElementById('bulletinStudentSelect'); sl.value = st.id; renderBulletin();
+  });
+
   function renderTopLevels() {
     const pool = (can('config') || can('users') || can('fin_view')) ? appState.students : visibleStudents();
     const groups = {};
@@ -4871,6 +5007,8 @@ return r('./index');})();
     if (currentTab === 'DASH') renderDash();
     if (currentTab === 'RESULTS') renderResults();
     if (currentTab === 'HONNEUR') renderHonneur();
+    if (currentTab === 'BILAN') renderBilan();
+    if (currentTab === 'RECH') renderRech();
     if (currentTab === 'PRESENCE') renderPresence();
     if (currentTab === 'EDT') renderEdt();
     if (currentTab === 'CARTES') renderCartes();
@@ -5298,10 +5436,10 @@ let pendingPhoto = null;
     if (exist >= 0 && !confirm(`Une archive « ${label} » existe déjà. La remplacer ?`)) return;
     const snap = { id: 'a_' + Date.now(), annee: label, date: new Date().toISOString().slice(0, 10), partial: false,
       classes: clone(appState.classes), subjects: clone(appState.subjects), fees: clone(appState.fees), students: clone(appState.students),
-      paie: clone(appState.paie || {}) };
+      paie: clone(appState.paie || {}), depenses: clone(appState.depenses || {}) };
     if (exist >= 0) appState.archives[exist] = snap; else appState.archives.push(snap);
     appState.students = [];
-    appState.presence = {}; appState.paie = {};
+    appState.presence = {}; appState.paie = {}; appState.depenses = {};
     appState.anneeDebut = next; START_YEAR = next;
     appState.periode = (PERIODS[appState.cycle] || PERIODS.COLLEGE)[0].id;
     saveState(false);
@@ -5710,7 +5848,7 @@ let pendingPhoto = null;
   // ===== Synchronisation Firebase (hors ligne / en ligne) =====
   const SYNC_CFG_KEY = 'erp_sync_cfg', SYNC_META_KEY = 'erp_sync_meta';
   const SYNC_KEYS = ['classes', 'subjects', 'fees', 'direction', 'presenceCfg', 'employes', 'edt', 'rolePerms', 'profsPublic', 'anneeDebut'];
-  const SYNC_DICTS = { presence: 'pres', paie: 'paie' };
+  const SYNC_DICTS = { presence: 'pres', paie: 'paie', depenses: 'dep' };
   const SDK = 'https://www.gstatic.com/firebasejs/9.23.0/';
   const sync = { cfg: null, db: null, remote: new Map(), meta: {}, lct: {}, unsub: null, timer: null, running: false, again: false, mode: null, applying: false, pendingRender: false, state: 'off' };
   try { sync.cfg = JSON.parse(localStorage.getItem(SYNC_CFG_KEY) || 'null'); sync.meta = JSON.parse(localStorage.getItem(SYNC_META_KEY) || '{}'); } catch (e) {}
@@ -5731,7 +5869,7 @@ let pendingPhoto = null;
     const d = {};
     appState.students.forEach(st => { d['stu_' + st.id] = JSON.stringify(st); });
     (appState.archives || []).forEach(a => {
-      d['arcm_' + a.id] = JSON.stringify({ id: a.id, annee: a.annee, date: a.date || '', partial: !!a.partial, classes: a.classes || [], subjects: a.subjects || {}, fees: a.fees || {}, paie: a.paie || {} });
+      d['arcm_' + a.id] = JSON.stringify({ id: a.id, annee: a.annee, date: a.date || '', partial: !!a.partial, classes: a.classes || [], subjects: a.subjects || {}, fees: a.fees || {}, paie: a.paie || {}, depenses: a.depenses || {} });
       (a.students || []).forEach(st => { d['arcs_' + a.id + '__' + st.id] = JSON.stringify(st); });
     });
     SYNC_KEYS.forEach(k => { if (appState[k] !== undefined) d['key_' + k] = JSON.stringify(appState[k]); });
