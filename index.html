@@ -200,10 +200,19 @@
     .b-logo { flex: none; width: 66px; display: flex; align-items: flex-start; justify-content: center; }
     .b-logo img { max-height: 62px; max-width: 66px; object-fit: contain; }
     body.print-recouv #sec_FINANCES > *:not(#recouvCard) { display: none !important; }
+    .hon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; margin-bottom: 14px; }
+    .hon-card { border: 1px solid var(--border); border-radius: 12px; padding: 10px 8px; text-align: center; break-inside: avoid; page-break-inside: avoid; background: #fff; }
+    .hon-card.first { border: 2px solid #e6b800; background: #fffbea; }
+    .hon-photo { width: 84px; height: 104px; object-fit: cover; border-radius: 8px; border: 2px solid #e6b800; background: #f1f5f9; display: block; margin: 6px auto; }
+    .hon-ph { display: flex; align-items: center; justify-content: center; font-size: 1.6rem; font-weight: 800; color: var(--primary-dark); }
+    .hon-com { font-size: 0.74rem; font-style: italic; margin-top: 6px; padding: 3px; border-radius: 6px; min-height: 2.4em; }
+    .hon-com:focus { outline: 2px solid var(--primary); background: #fff; }
     .print-only { display: none; }
     #bulletinBatch { display: none; }
     @media print {
       .print-only { display: block; }
+      .hon-grid { grid-template-columns: repeat(5, 1fr); gap: 6px; }
+      .hon-card { padding: 6px 4px; }
       .cards-grid { display: block; }
       .card-row { margin-bottom: 3mm; break-inside: avoid; page-break-inside: avoid; flex-wrap: nowrap; }
       .card-row:nth-child(4n) { break-after: page; page-break-after: always; }
@@ -344,6 +353,7 @@
     <button type="button" class="nav-tab" id="tab_NOTES">Saisie des notes</button>
     <button type="button" class="nav-tab" id="tab_BULLETIN">Bulletins &amp; classement</button>
     <button type="button" class="nav-tab" id="tab_RESULTS">Résultats par classe</button>
+    <button type="button" class="nav-tab" id="tab_HONNEUR">Tableau d'honneur</button>
     <button type="button" class="nav-tab" id="tab_PRESENCE">Contrôle de présence</button>
     <button type="button" class="nav-tab" id="tab_EDT">Emplois du temps</button>
     <button type="button" class="nav-tab" id="tab_CARTES">Cartes scolaires</button>
@@ -846,6 +856,9 @@
     </div>
     <div class="bulletin-title" id="resTitre" style="text-align:center; text-transform:uppercase; padding:4px; margin-bottom:0.6rem;"></div>
     <div class="card"><h3 class="no-print">Classement des élèves</h3><div style="overflow-x: auto;"><table><thead id="resHead"></thead><tbody id="resBody"></tbody></table></div></div>
+    <div class="card"><h3>Résultats par matière — classement par ordre de mérite</h3>
+      <p style="font-size:0.78rem; color:var(--muted); margin-bottom:6px;">Dans chaque case : la moyenne de l'élève dans la matière (en haut) et la moyenne pondérée, c'est-à-dire moyenne × coefficient (en gras).</p>
+      <div style="overflow-x: auto;"><table id="resMeritTable"><thead id="resMeritHead"></thead><tbody id="resMeritBody"></tbody><tfoot id="resMeritFoot"></tfoot></table></div></div>
     <div class="card" id="resStatsCard" style="margin-top: 0.75rem;"><h3 class="no-print">Statistiques de la classe</h3><div style="overflow-x:auto;"><table class="stats-table"><thead id="resStatsHead"></thead><tbody id="resStatsBody"></tbody></table></div></div>
     <div class="print-only" style="margin-top: 1rem; font-size: 0.85rem;">
       <div class="flex-between" style="align-items: flex-start;">
@@ -855,6 +868,18 @@
       </div>
     </div>
     <div class="card res-noprint"><h3>Moyennes par matière</h3><div style="overflow-x: auto;"><table><thead id="resSubHead"></thead><tbody id="resSubBody"></tbody></table></div></div>
+  </section>
+
+  <!-- TABLEAU D'HONNEUR -->
+  <section id="sec_HONNEUR" class="hidden">
+    <div class="flex-between no-print" style="margin-bottom: 1rem;">
+      <div>
+        <h2 style="font-size: 1.15rem;">Tableau d'honneur</h2>
+        <p style="font-size: 0.82rem; color: var(--muted);" id="honSub"></p>
+      </div>
+      <button type="button" class="btn btn-primary no-print" id="btnPrintHonneur">Imprimer / Enregistrer en PDF</button>
+    </div>
+    <div class="card" id="honArea"></div>
   </section>
 
   <!-- CONTRÔLE DE PRÉSENCE -->
@@ -2738,12 +2763,13 @@ return r('./index');})();
     }
   });
 
-  const TAB_ORDER = ['DASH', 'NOTES', 'BULLETIN', 'RESULTS', 'PRESENCE', 'EDT', 'CARTES', 'CONFIG', 'FINANCES', 'PAIE', 'RELEVE', 'MSG', 'CHAT', 'ARCHIVES', 'USERS'];
+  const TAB_ORDER = ['DASH', 'NOTES', 'BULLETIN', 'RESULTS', 'HONNEUR', 'PRESENCE', 'EDT', 'CARTES', 'CONFIG', 'FINANCES', 'PAIE', 'RELEVE', 'MSG', 'CHAT', 'ARCHIVES', 'USERS'];
   const TABS = {
     DASH:     { label: () => 'Tableau de bord', allowed: () => can('dashboard') },
     NOTES:    { label: () => can('notes_edit') ? 'Saisie des notes' : 'Consultation des notes', allowed: () => can('notes_view') || can('notes_edit') },
     BULLETIN: { label: () => 'Bulletins & classement', allowed: () => can('bulletin_all') || can('bulletin_own') },
     RESULTS:  { label: () => 'Résultats par classe', allowed: () => can('bulletin_all') },
+    HONNEUR:  { label: () => "Tableau d'honneur", allowed: () => can('bulletin_all') },
     PRESENCE: { label: () => 'Contrôle de présence', allowed: () => can('presence') || can('config') || can('notes_edit') },
     CARTES:   { label: () => 'Cartes scolaires', allowed: () => can('config') || can('fin_edit') || can('users') },
     EDT:      { label: () => 'Emplois du temps', allowed: () => !!currentUser },
@@ -3522,7 +3548,7 @@ return r('./index');})();
     const empty = '<tr><td style="padding: 1rem; color: var(--muted);">Aucun élève dans cette classe.</td></tr>';
     if (!sts.length) {
       kp.innerHTML = '';
-      ['resHead', 'resSubHead', 'resSubBody', 'resStatsHead', 'resStatsBody'].forEach(id => { document.getElementById(id).innerHTML = ''; });
+      ['resHead', 'resSubHead', 'resSubBody', 'resStatsHead', 'resStatsBody', 'resMeritHead', 'resMeritBody', 'resMeritFoot'].forEach(id => { document.getElementById(id).innerHTML = ''; });
       document.getElementById('resBody').innerHTML = empty;
       return;
     }
@@ -3567,6 +3593,15 @@ return r('./index');})();
       <td class="text-center"><strong>${r.rang}${r.rang === 1 ? 'er' : 'ème'}${r.ex ? ' ex' : ''}</strong></td>
       <td>${getMention(r.cur, cycle)}</td>
     </tr>`).join('');
+
+    // Résultats par matière (moyennes pondérées) par ordre de mérite
+    { const subs0 = appState.subjects[appState.classe] || [];
+      document.getElementById('resMeritHead').innerHTML = `<tr><th class="text-center">Rang</th><th>Prénoms et Nom</th>${subs0.map(x => `<th class="text-center" style="font-size:0.7rem; padding:4px 3px;">${esc(x.nom)}<br><small>coef ${x.coef}</small></th>`).join('')}<th class="text-center">Total pts</th><th class="text-center">Moy.</th><th>Mention</th></tr>`;
+      document.getElementById('resMeritBody').innerHTML = rows.map(r => {
+        const b = computeStudentBulletin(r.st, cycle);
+        return `<tr><td class="text-center"><strong>${r.rang}${r.rang === 1 ? 'er' : 'ème'}${r.ex ? ' ex' : ''}</strong></td><td><strong>${esc(full(r.st))}</strong></td>${b.rows.map(x => `<td class="text-center" style="font-size:0.72rem; padding:4px 3px;"><span style="color:var(--muted)">${fmt(x.moy)}</span><br><strong>${fmt(x.pts)}</strong></td>`).join('')}<td class="text-center"><strong>${fmt(b.totalPoints)}</strong></td><td class="text-center highlight-green"><strong>${fmt(r.cur)}</strong></td><td>${getMention(r.cur, cycle)}</td></tr>`;
+      }).join('');
+      document.getElementById('resMeritFoot').innerHTML = `<tr style="background:#f8fafc; font-weight:800;"><td></td><td>Total des coefficients</td>${subs0.map(x => `<td class="text-center">${x.coef}</td>`).join('')}<td class="text-center">${subs0.reduce((a, x) => a + (parseFloat(x.coef) || 0), 0)}</td><td></td><td></td></tr>`; }
 
     // Statistiques (F = filles, G = garçons)
     const composed = r => curIdx >= 0 ? r.per[curIdx] !== null : r.per.some(x => x !== null);
@@ -4453,7 +4488,7 @@ return r('./index');})();
 
   // ===== Export des documents : PDF, Word, Excel =====
   const EXPORTS = [
-    ['btnPrintBulletin', ['bulletinPrintArea', 'bulletinSecond'], 'Bulletin'], ['btnPrintResults', ['sec_RESULTS'], 'Resultats'],
+    ['btnPrintBulletin', ['bulletinPrintArea', 'bulletinSecond'], 'Bulletin'], ['btnPrintResults', ['sec_RESULTS'], 'Resultats'], ['btnPrintHonneur', ['sec_HONNEUR'], 'TableauHonneur'],
     ['btnPrintReleve', ['relevePrintArea', 'releveSecond'], 'Releve'], ['btnPrintEtat', ['paieEtat', 'paieSlip'], 'Paie'],
     ['btnPrintPres', ['sec_PRESENCE'], 'Presence'], ['btnPrintCards', ['cardsGrid'], 'Cartes'], ['btnPrintRecouv', ['recouvArea'], 'Recouvrement'], ['btnPrintEdt', ['sec_EDT'], 'EmploiDuTemps']
   ];
@@ -4578,7 +4613,7 @@ return r('./index');})();
   const TILE_GROUPS = [
     ['Inscriptions et listes', [['CONFIG', '👤', 'Inscription et liste des élèves'], ['CONFIG', '📥', 'Importer des élèves'], ['CARTES', '🪪', 'Cartes scolaires']]],
     ['Matières, classes et emplois du temps', [['CONFIG', '⚙️', 'Matières et classes'], ['EDT', '🗓️', 'Emplois du temps'], ['PRESENCE', '✅', 'Contrôle de présence']]],
-    ['Saisie des notes et bulletins', [['NOTES', '📝', 'Saisie des notes'], ['BULLETIN', '📄', 'Bulletins de notes'], ['RESULTS', '🏆', 'Résultats par classe']]],
+    ['Saisie des notes et bulletins', [['NOTES', '📝', 'Saisie des notes'], ['BULLETIN', '📄', 'Bulletins de notes'], ['RESULTS', '🏆', 'Résultats par classe'], ['HONNEUR', '🏅', "Tableau d'honneur"]]],
     ['Scolarité et paie', [['FINANCES', '💰', 'Scolarité et recouvrement'], ['RELEVE', '🧾', 'Relevé de scolarité'], ['MSG', '💬', 'Messages aux parents'], ['PAIE', '👨‍🏫', 'Paie du personnel']]],
     ['Communication', [['CHAT', '✉️', 'Messagerie']]],
     ['Administration', [['USERS', '🔐', 'Comptes et accès'], ['ARCHIVES', '🗄️', 'Archives']]]
@@ -4597,6 +4632,40 @@ return r('./index');})();
     if (/^\s*t(erm|le)/i.test(classe) || n >= 11) return 'Lycée';
     return n >= 7 ? 'Collège' : 'Secondaire';
   }
+  // ===== Tableau d'honneur =====
+  function honneurAuto(m20) {
+    if (m20 >= 16) return 'Excellents résultats. Félicitations : continuez ainsi !';
+    if (m20 >= 14) return 'Très bon travail. Félicitations, poursuivez vos efforts.';
+    if (m20 >= 12) return 'Bon travail. Encouragements : visez encore plus haut.';
+    return 'Résultats encourageants. Plus de régularité donnera de meilleurs résultats.';
+  }
+  function renderHonneur() {
+    const per = appState.periode;
+    const groups = {};
+    appState.students.forEach(st => {
+      const cyc = classCycle(st.classe) || appState.cycle, b = computeStudentBulletin(st, cyc);
+      if (b.totalCoef > 0 && b.moyGen > 0) { const bar = cyc === 'PRIMAIRE' ? 10 : 20; (groups[levelOf(st.classe)] = groups[levelOf(st.classe)] || []).push({ st, m: b.moyGen, bar, n20: b.moyGen * 20 / bar, cyc }); }
+    });
+    document.getElementById('honSub').textContent = periodLabel() + ' • les 5 meilleurs élèves de chaque niveau • cliquez sur un commentaire pour le modifier';
+    const full = st => [st.prenom, st.nomFamille].filter(Boolean).join(' ') || st.nom;
+    const order = ['Primaire', 'Collège', 'Lycée', 'Secondaire'].filter(l => groups[l]);
+    const coms = appState.honneurCom || {};
+    const html = order.map(l => {
+      const top = groups[l].sort((a, b) => b.n20 - a.n20).slice(0, 5);
+      return `<div class="bulletin-title" style="text-transform:uppercase; padding:4px; margin:0.6rem 0;">Tableau d'honneur — ${l}</div><div class="hon-grid">${top.map((d, i) => {
+        const ph = photoOf(d.st), k = d.st.id + '|' + per, auto = honneurAuto(d.n20);
+        const ini = (full(d.st).trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('') || '?').toUpperCase();
+        return `<div class="hon-card ${i === 0 ? 'first' : ''}"><div style="font-size:1.4rem;">${['🥇', '🥈', '🥉', '4ème', '5ème'][i]}</div>${ph ? `<img class="hon-photo" src="${ph}" alt="" />` : `<div class="hon-photo hon-ph">${esc(ini)}</div>`}<strong style="font-size:0.85rem;">${esc(full(d.st))}</strong><div style="font-size:0.75rem; color:var(--muted);">${esc(d.st.classe)}</div><div style="margin-top:4px;"><span class="badge badge-ok">${fmt(d.m)} / ${d.bar}</span></div><div style="font-size:0.74rem; font-weight:700;">${getMention(d.m, d.cyc)}</div><div class="hon-com" contenteditable="true" data-k="${esc(k)}" data-auto="${esc(auto)}">${esc(coms[k] || auto)}</div></div>`;
+      }).join('')}</div>`;
+    }).join('');
+    document.getElementById('honArea').innerHTML = docHeaderHtml(`<p style="font-size:0.85rem; margin-top:0.7rem;">Période : <strong>${esc(periodLabel())}</strong></p>`) + (html || '<p style="color:var(--muted)">Aucune note saisie pour le moment.</p>');
+  }
+  document.getElementById('honArea').addEventListener('focusout', (e) => {
+    const el = e.target.closest ? e.target.closest('.hon-com') : null; if (!el) return;
+    const t = el.innerText.trim(); appState.honneurCom = appState.honneurCom || {};
+    if (!t || t === el.dataset.auto) delete appState.honneurCom[el.dataset.k]; else appState.honneurCom[el.dataset.k] = t.slice(0, 160);
+    saveState(false);
+  });
   function renderTopLevels() {
     const pool = (can('config') || can('users') || can('fin_view')) ? appState.students : visibleStudents();
     const groups = {};
@@ -4778,6 +4847,7 @@ return r('./index');})();
   function renderAll() {
     if (currentTab === 'DASH') renderDash();
     if (currentTab === 'RESULTS') renderResults();
+    if (currentTab === 'HONNEUR') renderHonneur();
     if (currentTab === 'PRESENCE') renderPresence();
     if (currentTab === 'EDT') renderEdt();
     if (currentTab === 'CARTES') renderCartes();
@@ -4799,6 +4869,7 @@ return r('./index');})();
   document.getElementById('btnLogout').addEventListener('click', logout);
   document.getElementById('btnPrintDash').addEventListener('click', () => window.print());
   document.getElementById('btnPrintResults').addEventListener('click', () => window.print());
+  document.getElementById('btnPrintHonneur').addEventListener('click', () => window.print());
 
   // --- Connexion
   function showLoginMode(register, info) {
