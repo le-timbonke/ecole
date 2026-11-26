@@ -217,6 +217,9 @@
       .card-row { margin-bottom: 3mm; break-inside: avoid; page-break-inside: avoid; flex-wrap: nowrap; }
       .card-row:nth-child(4n) { break-after: page; page-break-after: always; }
       .id-card { box-shadow: none; }
+      body.print-resA #resBlockB { display: none !important; }
+      body.print-resB #resBlockA { display: none !important; }
+      body.print-resB #resBlockB { border: 0; box-shadow: none; padding: 0; margin: 0; }
       body.print-slip #paieEtat, body.print-slip #paieEmpCard { display: none !important; }
       body.print-etat #paieSlip, body.print-etat #paieEmpCard { display: none !important; }
       body.print-batch #bulletinPrintArea, body.print-batch #bulletinSecond { display: none !important; }
@@ -835,9 +838,10 @@
         <h2 style="font-size: 1.15rem;">Résultats par classe</h2>
         <p style="font-size: 0.82rem; color: var(--muted);" id="resSub"></p>
       </div>
-      <button type="button" class="btn btn-primary no-print" id="btnPrintResults">Imprimer / Enregistrer en PDF</button>
+      <button type="button" class="btn btn-primary no-print" id="btnPrintResults">Imprimer le classement</button>
     </div>
     <div class="kpi-grid res-noprint" id="resKpis"></div>
+    <div id="resBlockA">
     <div class="bulletin-header" style="align-items: flex-start; gap: 8px; margin-bottom: 0.75rem;">
       <div style="flex: 1; font-size: 0.8rem; font-weight: 700; line-height: 1.35;">
         <div><span class="mepu-txt">MEPU-A</span></div><div>IRE : <span id="rhIre"></span></div><div>DCE : <span id="rhDce"></span></div><div>DSEE : <span id="rhDsee"></span></div>
@@ -856,9 +860,6 @@
     </div>
     <div class="bulletin-title" id="resTitre" style="text-align:center; text-transform:uppercase; padding:4px; margin-bottom:0.6rem;"></div>
     <div class="card"><h3 class="no-print">Classement des élèves</h3><div style="overflow-x: auto;"><table><thead id="resHead"></thead><tbody id="resBody"></tbody></table></div></div>
-    <div class="card"><h3>Résultats par matière — classement par ordre de mérite</h3>
-      <p style="font-size:0.78rem; color:var(--muted); margin-bottom:6px;">Dans chaque case : la moyenne de l'élève dans la matière (en haut) et la moyenne pondérée, c'est-à-dire moyenne × coefficient (en gras).</p>
-      <div style="overflow-x: auto;"><table id="resMeritTable"><thead id="resMeritHead"></thead><tbody id="resMeritBody"></tbody><tfoot id="resMeritFoot"></tfoot></table></div></div>
     <div class="card" id="resStatsCard" style="margin-top: 0.75rem;"><h3 class="no-print">Statistiques de la classe</h3><div style="overflow-x:auto;"><table class="stats-table"><thead id="resStatsHead"></thead><tbody id="resStatsBody"></tbody></table></div></div>
     <div class="print-only" style="margin-top: 1rem; font-size: 0.85rem;">
       <div class="flex-between" style="align-items: flex-start;">
@@ -866,6 +867,21 @@
         <div style="text-align:center; flex:1;"><strong>Le Directeur des Études</strong><div style="height: 34px;"></div><span id="rpSigDE"></span></div>
         <div style="text-align:center; flex:1;"><strong>Le Directeur Général</strong><div style="height: 34px;"></div><span id="rpSigDG"></span></div>
       </div>
+    </div>
+    </div>
+
+    <!-- Résultats par matière (ordre de mérite) : document à part, imprimé séparément -->
+    <div class="card" id="resBlockB" style="margin-top: 1rem;">
+      <div class="flex-between no-print" style="margin-bottom: 0.75rem; gap: 8px; flex-wrap: wrap;">
+        <h3 style="font-size: 1rem;">Résultats par matière — ordre de mérite</h3>
+        <button type="button" class="btn btn-primary no-print" id="btnPrintMerit">Imprimer ce tableau</button>
+      </div>
+      <div id="resMeritHeader"></div>
+      <div class="bulletin-title" id="resMeritTitre" style="text-align:center; text-transform:uppercase; padding:4px; margin-bottom:0.6rem;"></div>
+      <div style="overflow-x: auto;"><table id="resMeritTable"><thead id="resMeritHead"></thead><tbody id="resMeritBody"></tbody><tfoot id="resMeritFoot"></tfoot></table></div>
+      <h3 class="no-print" style="margin-top:0.9rem;">Statistiques de la classe</h3>
+      <div style="overflow-x:auto; margin-top:0.5rem;"><table class="stats-table"><thead id="resStatsHead2"></thead><tbody id="resStatsBody2"></tbody></table></div>
+      <div class="print-only" id="resSigB" style="margin-top: 1rem; font-size: 0.85rem;"></div>
     </div>
     <div class="card res-noprint"><h3>Moyennes par matière</h3><div style="overflow-x: auto;"><table><thead id="resSubHead"></thead><tbody id="resSubBody"></tbody></table></div></div>
   </section>
@@ -3548,7 +3564,7 @@ return r('./index');})();
     const empty = '<tr><td style="padding: 1rem; color: var(--muted);">Aucun élève dans cette classe.</td></tr>';
     if (!sts.length) {
       kp.innerHTML = '';
-      ['resHead', 'resSubHead', 'resSubBody', 'resStatsHead', 'resStatsBody', 'resMeritHead', 'resMeritBody', 'resMeritFoot'].forEach(id => { document.getElementById(id).innerHTML = ''; });
+      ['resHead', 'resSubHead', 'resSubBody', 'resStatsHead', 'resStatsBody', 'resMeritHead', 'resMeritBody', 'resMeritFoot', 'resStatsHead2', 'resStatsBody2', 'resMeritHeader', 'resMeritTitre', 'resSigB'].forEach(id => { document.getElementById(id).innerHTML = ''; });
       document.getElementById('resBody').innerHTML = empty;
       return;
     }
@@ -3599,8 +3615,12 @@ return r('./index');})();
       document.getElementById('resMeritHead').innerHTML = `<tr><th class="text-center">Nº</th><th>Matricule</th><th>Prénoms et Nom</th><th class="text-center">Sexe</th>${subs0.map(x => `<th class="text-center" style="font-size:0.7rem; padding:4px 3px;">${esc(x.nom)}<br><small>coef ${x.coef}</small></th>`).join('')}<th class="text-center">Total</th><th class="text-center">Moyenne générale</th><th class="text-center">Rang</th><th>Observation</th></tr>`;
       document.getElementById('resMeritBody').innerHTML = rows.map((r, i) => {
         const b = computeStudentBulletin(r.st, cycle);
-        return `<tr><td class="text-center">${i + 1}</td><td>${esc(r.st.matricule)}</td><td><strong>${esc(full(r.st))}</strong></td><td class="text-center">${r.st.sexe === 'F' ? 'F' : 'M'}</td>${b.rows.map(x => `<td class="text-center" style="font-size:0.72rem; padding:4px 3px;"><span style="color:var(--muted)">${fmt(x.moy)}</span><br><strong>${fmt(x.pts)}</strong></td>`).join('')}<td class="text-center"><strong>${fmt(b.totalPoints)}</strong></td><td class="text-center highlight-green"><strong>${fmt(r.cur)}</strong></td><td class="text-center"><strong>${r.rang}${r.rang === 1 ? 'er' : 'ème'}${r.ex ? ' ex' : ''}</strong></td><td>${getMention(r.cur, cycle)}</td></tr>`;
+        return `<tr><td class="text-center">${i + 1}</td><td>${esc(r.st.matricule)}</td><td><strong>${esc(full(r.st))}</strong></td><td class="text-center">${r.st.sexe === 'F' ? 'F' : 'M'}</td>${b.rows.map(x => `<td class="text-center" style="font-size:0.78rem; padding:4px 3px;">${fmt(x.pts)}</td>`).join('')}<td class="text-center"><strong>${fmt(b.totalPoints)}</strong></td><td class="text-center highlight-green"><strong>${fmt(r.cur)}</strong></td><td class="text-center"><strong>${r.rang}${r.rang === 1 ? 'er' : 'ème'}${r.ex ? ' ex' : ''}</strong></td><td>${getMention(r.cur, cycle)}</td></tr>`;
       }).join('');
+      document.getElementById('resMeritHeader').innerHTML = docHeaderHtml(`<p style="font-size:0.85rem; margin-top:0.7rem;">Classe : <strong>${esc(appState.classe || '')}</strong></p>`);
+      document.getElementById('resMeritTitre').textContent = 'Résultats par matière (notes coefficiées) — ordre de mérite — ' + periodLabel();
+      { const dd = appState.direction || {}, cl2 = appState.classes.find(c => c.nom === appState.classe) || {};
+        document.getElementById('resSigB').innerHTML = `<div class="flex-between" style="align-items: flex-start;"><div style="text-align:center; flex:1;"><strong>${cycle === 'PRIMAIRE' ? 'Le Maître' : 'Le Professeur Principal'}</strong><div style="height: 34px;"></div><span>${esc(cl2.titulaire || '')}</span></div><div style="text-align:center; flex:1;"><strong>Le Directeur des Études</strong><div style="height: 34px;"></div><span>${esc(dd.etudes || '')}</span></div><div style="text-align:center; flex:1;"><strong>Le Directeur Général</strong><div style="height: 34px;"></div><span>${esc(dd.general || '')}</span></div></div>`; }
       document.getElementById('resMeritFoot').innerHTML = `<tr style="background:#f8fafc; font-weight:800;"><td colspan="4">Total des coefficients</td>${subs0.map(x => `<td class="text-center">${x.coef}</td>`).join('')}<td class="text-center">${subs0.reduce((a, x) => a + (parseFloat(x.coef) || 0), 0)}</td><td></td><td></td><td></td></tr>`; }
 
     // Statistiques (F = filles, G = garçons)
@@ -3615,6 +3635,9 @@ return r('./index');})();
     document.getElementById('resStatsHead').innerHTML = `<tr>${groups.map(g => `<th colspan="2">${g}</th>`).join('')}<th rowspan="2">Observation</th></tr><tr>${groups.map(() => '<th>F</th><th>G</th>').join('')}</tr>`;
     const two = (o) => `<td>${o.F}</td><td>${o.G}</td>`;
     document.getElementById('resStatsBody').innerHTML = `<tr>${two(eff)}${two(comp)}${two(non)}${two(moy)}${two(sans)}<td>${pc(moy.F, comp.F)}</td><td>${pc(moy.G, comp.G)}</td><td>${pc(sans.F, comp.F)}</td><td>${pc(sans.G, comp.G)}</td><td><strong>${obs}</strong></td></tr>`;
+
+    document.getElementById('resStatsHead2').innerHTML = document.getElementById('resStatsHead').innerHTML;
+    document.getElementById('resStatsBody2').innerHTML = document.getElementById('resStatsBody').innerHTML;
 
     // Moyennes par matière (moyenne de la classe)
     const subs = appState.subjects[appState.classe] || [];
@@ -4229,7 +4252,7 @@ return r('./index');})();
   function printPaie(cls) {
     document.body.classList.add(cls);
     let pst = null;
-    if (cls === 'print-recouv') { pst = document.createElement('style'); pst.textContent = '@page { size: A4 landscape; margin: 8mm; }'; document.head.appendChild(pst); }
+    if (cls === 'print-recouv' || cls === 'print-resB') { pst = document.createElement('style'); pst.textContent = '@page { size: A4 landscape; margin: 8mm; }'; document.head.appendChild(pst); }
     const done = () => { document.body.classList.remove(cls); if (pst) pst.remove(); window.removeEventListener('afterprint', done); };
     window.addEventListener('afterprint', done);
     window.print();
@@ -4488,7 +4511,7 @@ return r('./index');})();
 
   // ===== Export des documents : PDF, Word, Excel =====
   const EXPORTS = [
-    ['btnPrintBulletin', ['bulletinPrintArea', 'bulletinSecond'], 'Bulletin'], ['btnPrintResults', ['sec_RESULTS'], 'Resultats'], ['btnPrintHonneur', ['sec_HONNEUR'], 'TableauHonneur'],
+    ['btnPrintBulletin', ['bulletinPrintArea', 'bulletinSecond'], 'Bulletin'], ['btnPrintResults', ['resBlockA'], 'Resultats'], ['btnPrintMerit', ['resBlockB'], 'ResultatsMerite'], ['btnPrintHonneur', ['sec_HONNEUR'], 'TableauHonneur'],
     ['btnPrintReleve', ['relevePrintArea', 'releveSecond'], 'Releve'], ['btnPrintEtat', ['paieEtat', 'paieSlip'], 'Paie'],
     ['btnPrintPres', ['sec_PRESENCE'], 'Presence'], ['btnPrintCards', ['cardsGrid'], 'Cartes'], ['btnPrintRecouv', ['recouvArea'], 'Recouvrement'], ['btnPrintEdt', ['sec_EDT'], 'EmploiDuTemps']
   ];
@@ -4868,7 +4891,8 @@ return r('./index');})();
   TAB_ORDER.forEach(t => document.getElementById('tab_' + t).addEventListener('click', () => setTab(t)));
   document.getElementById('btnLogout').addEventListener('click', logout);
   document.getElementById('btnPrintDash').addEventListener('click', () => window.print());
-  document.getElementById('btnPrintResults').addEventListener('click', () => window.print());
+  document.getElementById('btnPrintResults').addEventListener('click', () => printPaie('print-resA'));
+  document.getElementById('btnPrintMerit').addEventListener('click', () => printPaie('print-resB'));
   document.getElementById('btnPrintHonneur').addEventListener('click', () => window.print());
 
   // --- Connexion
