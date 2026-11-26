@@ -3596,12 +3596,12 @@ return r('./index');})();
 
     // Résultats par matière (moyennes pondérées) par ordre de mérite
     { const subs0 = appState.subjects[appState.classe] || [];
-      document.getElementById('resMeritHead').innerHTML = `<tr><th class="text-center">Rang</th><th>Prénoms et Nom</th>${subs0.map(x => `<th class="text-center" style="font-size:0.7rem; padding:4px 3px;">${esc(x.nom)}<br><small>coef ${x.coef}</small></th>`).join('')}<th class="text-center">Total pts</th><th class="text-center">Moy.</th><th>Mention</th></tr>`;
-      document.getElementById('resMeritBody').innerHTML = rows.map(r => {
+      document.getElementById('resMeritHead').innerHTML = `<tr><th class="text-center">Nº</th><th>Matricule</th><th>Prénoms et Nom</th><th class="text-center">Sexe</th>${subs0.map(x => `<th class="text-center" style="font-size:0.7rem; padding:4px 3px;">${esc(x.nom)}<br><small>coef ${x.coef}</small></th>`).join('')}<th class="text-center">Total</th><th class="text-center">Moyenne générale</th><th class="text-center">Rang</th><th>Observation</th></tr>`;
+      document.getElementById('resMeritBody').innerHTML = rows.map((r, i) => {
         const b = computeStudentBulletin(r.st, cycle);
-        return `<tr><td class="text-center"><strong>${r.rang}${r.rang === 1 ? 'er' : 'ème'}${r.ex ? ' ex' : ''}</strong></td><td><strong>${esc(full(r.st))}</strong></td>${b.rows.map(x => `<td class="text-center" style="font-size:0.72rem; padding:4px 3px;"><span style="color:var(--muted)">${fmt(x.moy)}</span><br><strong>${fmt(x.pts)}</strong></td>`).join('')}<td class="text-center"><strong>${fmt(b.totalPoints)}</strong></td><td class="text-center highlight-green"><strong>${fmt(r.cur)}</strong></td><td>${getMention(r.cur, cycle)}</td></tr>`;
+        return `<tr><td class="text-center">${i + 1}</td><td>${esc(r.st.matricule)}</td><td><strong>${esc(full(r.st))}</strong></td><td class="text-center">${r.st.sexe === 'F' ? 'F' : 'M'}</td>${b.rows.map(x => `<td class="text-center" style="font-size:0.72rem; padding:4px 3px;"><span style="color:var(--muted)">${fmt(x.moy)}</span><br><strong>${fmt(x.pts)}</strong></td>`).join('')}<td class="text-center"><strong>${fmt(b.totalPoints)}</strong></td><td class="text-center highlight-green"><strong>${fmt(r.cur)}</strong></td><td class="text-center"><strong>${r.rang}${r.rang === 1 ? 'er' : 'ème'}${r.ex ? ' ex' : ''}</strong></td><td>${getMention(r.cur, cycle)}</td></tr>`;
       }).join('');
-      document.getElementById('resMeritFoot').innerHTML = `<tr style="background:#f8fafc; font-weight:800;"><td></td><td>Total des coefficients</td>${subs0.map(x => `<td class="text-center">${x.coef}</td>`).join('')}<td class="text-center">${subs0.reduce((a, x) => a + (parseFloat(x.coef) || 0), 0)}</td><td></td><td></td></tr>`; }
+      document.getElementById('resMeritFoot').innerHTML = `<tr style="background:#f8fafc; font-weight:800;"><td colspan="4">Total des coefficients</td>${subs0.map(x => `<td class="text-center">${x.coef}</td>`).join('')}<td class="text-center">${subs0.reduce((a, x) => a + (parseFloat(x.coef) || 0), 0)}</td><td></td><td></td><td></td></tr>`; }
 
     // Statistiques (F = filles, G = garçons)
     const composed = r => curIdx >= 0 ? r.per[curIdx] !== null : r.per.some(x => x !== null);
