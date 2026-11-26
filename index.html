@@ -806,6 +806,28 @@
   </section>
   <!-- MESSAGES AUX PARENTS -->
   <section id="sec_MSG" class="hidden">
+    <div class="card no-print" id="msgPCard">
+      <h2 style="font-size: 1.05rem; margin-bottom: 0.25rem;">Message personnalisé</h2>
+      <p style="font-size: 0.82rem; color: var(--muted); margin-bottom: 10px;">Écrivez une information, cochez un, deux, trois… ou tous les destinataires, puis envoyez en un clic par WhatsApp. Vous pouvez utiliser <code>{nom}</code>, <code>{classe}</code> et <code>{matricule}</code> : ils seront remplacés pour chaque élève.</p>
+      <div class="form-grid">
+        <div><label for="msgPDest">S'adresser aux</label><select id="msgPDest"><option value="parent">Parents</option><option value="eleve">Élèves</option></select></div>
+        <div><label for="msgPClasse">Classe</label><select id="msgPClasse"></select></div>
+        <div><label for="msgPSearch">Rechercher (nom ou matricule)</label><input type="search" id="msgPSearch" autocomplete="off" /></div>
+      </div>
+      <div style="display:flex; gap:6px; flex-wrap:wrap; margin:8px 0;">
+        <button type="button" class="btn btn-outline" id="btnPShown" style="padding:4px 10px; font-size:0.78rem;">Cocher la liste affichée</button>
+        <button type="button" class="btn btn-outline" id="btnPAll" style="padding:4px 10px; font-size:0.78rem;">Cocher tous les élèves</button>
+        <button type="button" class="btn btn-outline" id="btnPNone" style="padding:4px 10px; font-size:0.78rem;">Tout décocher</button>
+      </div>
+      <div id="msgPList" style="max-height:240px; overflow:auto; border:1px solid var(--border); border-radius:10px; padding:6px 10px;"></div>
+      <div style="margin-top:10px;"><label for="msgPText">Votre message</label><textarea id="msgPText" rows="4" maxlength="800" style="width:100%;" placeholder="Ex. Les cours reprendront lundi à 8h. La réunion des parents d'élèves de {classe} aura lieu samedi à 10h."></textarea></div>
+      <p id="msgPInfo" style="font-size:0.82rem; margin:8px 0;"></p>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button type="button" class="btn btn-primary" id="btnPSend">Envoyer aux cochés (un clic)</button>
+        <button type="button" class="btn btn-outline" id="btnPNext">Envoyer au suivant</button>
+        <button type="button" class="btn btn-outline" id="btnPCopy">Copier les messages</button>
+      </div>
+    </div>
     <div class="card no-print">
       <h2 style="font-size: 1.05rem; margin-bottom: 0.25rem;">Messages aux parents</h2>
       <p style="font-size: 0.82rem; color: var(--muted); margin-bottom: 10px;">Chaque message est personnalisé : mois écoulés non payés (ou remerciement si tout est à jour), assiduité de l'élève et disponibilité des résultats. Envoi par WhatsApp depuis l'ordinateur (WhatsApp Web ou application de bureau), un clic pour toute la liste. Le navigateur ne peut pas envoyer seul : chaque message s'ouvre prêt à envoyer, il reste à valider « Envoyer » dans WhatsApp.</p>
@@ -994,6 +1016,7 @@
         <div><label for="edtSalle">Salle (facultatif)</label><input type="text" id="edtSalle" /></div>
       </div>
       <button type="button" class="btn btn-primary" id="btnEdtAdd">Ajouter le cours</button>
+      <button type="button" class="btn btn-outline hidden" id="btnEdtCancel">Annuler la modification</button>
     </div>
     <div class="card">
       <div class="flex-between no-print" style="gap:12px; flex-wrap:wrap; margin-bottom: 0.75rem;">
@@ -3325,7 +3348,7 @@ return r('./index');})();
     document.getElementById('cfgCycleLabel').textContent = appState.classe || 'aucune classe';
     const subs = appState.subjects[appState.classe] || [];
     document.getElementById('subjectsTableBody').innerHTML = subs.map(s => `<tr>
-      <td><strong>${s.nom}</strong></td>
+      <td><input type="text" value="${esc(s.nom)}" maxlength="60" data-action="subname" data-subid="${s.id}" style="width:100%; min-width:140px; font-weight:700;" /></td>
       <td class="text-center">
         <input type="number" min="1" max="15" value="${s.coef}" data-action="coef" data-subid="${s.id}" style="width:65px; text-align:center;" />
       </td>
@@ -4106,17 +4129,36 @@ return r('./index');})();
         }).join('')}</tr>`).join('')}</tbody>`
       : `<tbody><tr><td style="color:var(--muted); padding:1rem;">Aucun cours enregistré.</td></tr></tbody>`;
     document.getElementById('edtList').innerHTML = canEdit && list.length
-      ? `<h3 style="font-size:0.9rem;">Cours enregistrés</h3><table><tbody>${list.slice().sort((a, b) => a.jour - b.jour || toMin(a.debut) - toMin(b.debut)).map(x => `<tr><td>${JOURS[x.jour - 1]} ${x.debut}–${x.fin}</td><td>${esc(x.matiere)}</td><td>${esc(x.classe)}</td><td>${esc(profName(x.profId) || '—')}</td><td class="text-right"><button type="button" class="btn btn-danger" data-edel="${esc(x.id)}" style="padding:3px 8px;font-size:0.72rem;">Supprimer</button></td></tr>`).join('')}</tbody></table>` : '';
+      ? `<h3 style="font-size:0.9rem;">Cours enregistrés</h3><table><tbody>${list.slice().sort((a, b) => a.jour - b.jour || toMin(a.debut) - toMin(b.debut)).map(x => `<tr><td>${JOURS[x.jour - 1]} ${x.debut}–${x.fin}</td><td>${esc(x.matiere)}</td><td>${esc(x.classe)}</td><td>${esc(profName(x.profId) || '—')}</td><td class="text-right" style="white-space:nowrap;"><button type="button" class="btn btn-outline" data-eedit="${esc(x.id)}" style="padding:3px 8px; font-size:0.72rem;">Modifier</button> <button type="button" class="btn btn-danger" data-edel="${esc(x.id)}" style="padding:3px 8px;font-size:0.72rem;">Supprimer</button></td></tr>`).join('')}</tbody></table>` : '';
   }
   document.getElementById('edtMode').addEventListener('change', (e) => { edtMode = e.target.value; edtTarget = ''; renderEdt(); });
   document.getElementById('edtTarget').addEventListener('change', (e) => { edtTarget = e.target.value; renderEdt(); });
   document.getElementById('edtClasse').addEventListener('change', (e) => {
     document.getElementById('edtMatList').innerHTML = (appState.subjects[e.target.value] || []).map(m => `<option value="${esc(m.nom)}"></option>`).join('');
   });
+  let edtEditId = null;
+  function edtEditMode(on) {
+    document.getElementById('btnEdtAdd').textContent = on ? 'Enregistrer la modification' : 'Ajouter le cours';
+    document.getElementById('btnEdtCancel').classList.toggle('hidden', !on);
+    document.querySelector('#edtFormCard h2').textContent = on ? 'Modifier un cours de l\'emploi du temps' : 'Ajouter un cours à l\'emploi du temps';
+  }
+  document.getElementById('btnEdtCancel').addEventListener('click', () => { edtEditId = null; edtEditMode(false); document.getElementById('edtMat').value = ''; });
+  document.getElementById('edtList').addEventListener('click', (e) => {
+    const id = e.target.dataset.eedit; if (!id || !edtCanEdit()) return;
+    const x = appState.edt.find(y => y.id === id); if (!x) return;
+    edtEditId = id; edtEditMode(true);
+    document.getElementById('edtClasse').value = x.classe;
+    document.getElementById('edtMatList').innerHTML = (appState.subjects[x.classe] || []).map(m => `<option value="${esc(m.nom)}"></option>`).join('');
+    document.getElementById('edtJour').value = String(x.jour);
+    document.getElementById('edtDebut').value = x.debut; document.getElementById('edtFin').value = x.fin;
+    document.getElementById('edtMat').value = x.matiere; document.getElementById('edtProf').value = x.profId || '';
+    document.getElementById('edtSalle').value = x.salle || '';
+    document.getElementById('edtFormCard').scrollIntoView({ behavior: 'smooth' });
+  });
   document.getElementById('btnEdtAdd').addEventListener('click', () => {
     if (!edtCanEdit()) return;
     const e = {
-      id: 'e' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+      id: edtEditId || ('e' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5)),
       classe: document.getElementById('edtClasse').value,
       jour: parseInt(document.getElementById('edtJour').value),
       debut: document.getElementById('edtDebut').value,
@@ -4127,14 +4169,16 @@ return r('./index');})();
     };
     if (!e.matiere) return alert('Indiquez la matière.');
     if (!e.debut || !e.fin || toMin(e.fin) <= toMin(e.debut)) return alert("L'heure de fin doit être après l'heure de début.");
-    const overlap = x => x.jour === e.jour && toMin(x.debut) < toMin(e.fin) && toMin(e.debut) < toMin(x.fin);
+    const overlap = x => x.id !== e.id && x.jour === e.jour && toMin(x.debut) < toMin(e.fin) && toMin(e.debut) < toMin(x.fin);
     if (appState.edt.some(x => overlap(x) && x.classe === e.classe)) return alert('Cette classe a déjà un cours sur ce créneau.');
     if (e.profId && appState.edt.some(x => overlap(x) && x.profId === e.profId)) return alert('Cet enseignant a déjà un cours sur ce créneau.');
-    appState.edt.push(e);
+    const wasEdit = !!edtEditId;
+    if (wasEdit) appState.edt = appState.edt.map(x => x.id === e.id ? e : x); else appState.edt.push(e);
+    edtEditId = null; edtEditMode(false);
     saveState(false);
     document.getElementById('edtMat').value = '';
     renderEdt();
-    showAlert('Cours ajouté.');
+    showAlert(wasEdit ? 'Cours modifié.' : 'Cours ajouté.');
   });
   document.getElementById('edtList').addEventListener('click', (e) => {
     const id = e.target.dataset.edel;
@@ -4190,7 +4234,7 @@ return r('./index');})();
     const ef = (e, f, w, type) => `<input type="${type || 'text'}" value="${esc(e[f] === undefined ? '' : e[f])}" data-efield="${f}" data-eid="${esc(e.id)}" style="width:${w}px;" />`;
     document.getElementById('empBody').innerHTML = appState.employes.map(e => `<tr>
       <td><code>${esc(e.matricule)}</code></td><td>${ef(e, 'nom', 150)}</td><td>${ef(e, 'fonction', 110)}</td>
-      <td>${e.type === 'HORAIRE' ? 'Taux horaire' : 'Salaire mensuel'}</td>
+      <td><select data-efield="type" data-eid="${esc(e.id)}" style="width:120px;"><option value="HORAIRE" ${e.type === 'HORAIRE' ? 'selected' : ''}>Taux horaire</option><option value="MENSUEL" ${e.type === 'HORAIRE' ? '' : 'selected'}>Salaire mensuel</option></select></td>
       <td class="text-right">${ef(e, 'montant', 100, 'number')}</td>
       <td class="text-right">${e.type === 'HORAIRE' ? '—' : ef(e, 'tauxHoraire', 80, 'number')}</td>
       <td class="text-center"><input type="number" min="0" value="${blank(e.hsPct) ? 25 : e.hsPct}" data-efield="hsPct" data-eid="${esc(e.id)}" style="width:55px;" /></td>
@@ -4914,10 +4958,62 @@ return r('./index');})();
     if (f === 'ok') l = l.filter(x => arrieres(x).reste === 0);
     return l;
   }
+  // ===== Message personnalisé (un, plusieurs ou tous) =====
+  const msgSel = new Set(); let msgPQueue = 0;
+  function msgPText(st) {
+    const body = document.getElementById('msgPText').value.trim().replace(/\{nom\}/gi, st.nom).replace(/\{classe\}/gi, st.classe).replace(/\{matricule\}/gi, st.matricule);
+    return document.getElementById('msgPDest').value === 'eleve'
+      ? `Bonjour ${st.nom},\n\n${body}\n\nCordialement,\n${schoolName()}`
+      : `Bonjour, ${schoolName()} vous écrit au sujet de ${st.nom} (${st.classe}).\n\n${body}\n\nCordialement.`;
+  }
+  const msgPPicked = () => appState.students.filter(x => msgSel.has(String(x.id)));
+  function msgPShown() {
+    const q = document.getElementById('msgPSearch').value.trim().toLowerCase(), cl = document.getElementById('msgPClasse').value;
+    return appState.students.filter(st => (!cl || st.classe === cl) && (!q || (st.nom + ' ' + st.matricule).toLowerCase().includes(q))).sort((a, b) => String(a.classe).localeCompare(String(b.classe)) || String(a.nom).localeCompare(String(b.nom)));
+  }
+  function msgPInfo() {
+    const pk = msgPPicked(), ok = pk.filter(x => waUrl(x, 'x'));
+    document.getElementById('msgPInfo').textContent = `${pk.length} destinataire(s) coché(s) • ${ok.length} avec un numéro valide${pk.length - ok.length ? ' • ' + (pk.length - ok.length) + ' sans contact' : ''}`;
+  }
+  function renderMsgPick() {
+    const sel = document.getElementById('msgPClasse'), keep = sel.value, cl = [...new Set(appState.students.map(x => x.classe))];
+    sel.innerHTML = '<option value="">Toutes les classes</option>' + cl.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+    sel.value = cl.includes(keep) ? keep : '';
+    const l = msgPShown();
+    document.getElementById('msgPList').innerHTML = l.slice(0, 300).map(st => `<label style="display:flex; gap:8px; align-items:center; font-weight:400; padding:3px 0; text-transform:none; letter-spacing:0; font-size:0.85rem;"><input type="checkbox" data-psel="${esc(st.id)}" ${msgSel.has(String(st.id)) ? 'checked' : ''} /> <span><strong>${esc(st.nom)}</strong> <small style="color:var(--muted)">${esc(st.classe)} • ${esc(st.matricule)} • ${esc(st.contact || 'sans contact')}</small></span></label>`).join('') + (l.length > 300 ? `<p style="font-size:0.78rem; color:var(--muted);">${l.length - 300} autres élèves : affinez la recherche.</p>` : '') || '<p style="color:var(--muted); font-size:0.85rem;">Aucun élève.</p>';
+    msgPInfo();
+  }
+  document.getElementById('msgPCard').addEventListener('input', (e) => { if (e.target.id === 'msgPSearch') renderMsgPick(); });
+  document.getElementById('msgPCard').addEventListener('change', (e) => {
+    e.stopPropagation();
+    if (e.target.dataset.psel !== undefined) { const k = String(e.target.dataset.psel); if (e.target.checked) msgSel.add(k); else msgSel.delete(k); msgPQueue = 0; msgPInfo(); }
+    else if (e.target.id === 'msgPClasse') renderMsgPick();
+  });
+  document.getElementById('msgPCard').addEventListener('click', (e) => {
+    const id = e.target.id;
+    if (id === 'btnPShown') { msgPShown().forEach(x => msgSel.add(String(x.id))); renderMsgPick(); }
+    else if (id === 'btnPAll') { appState.students.forEach(x => msgSel.add(String(x.id))); renderMsgPick(); }
+    else if (id === 'btnPNone') { msgSel.clear(); renderMsgPick(); }
+    else if (id === 'btnPSend' || id === 'btnPNext' || id === 'btnPCopy') {
+      if (!document.getElementById('msgPText').value.trim()) return alert('Écrivez d\'abord votre message.');
+      const pk = msgPPicked(); if (!pk.length) return alert('Cochez au moins un destinataire.');
+      const ok = pk.filter(x => waUrl(x, 'x'));
+      if (id === 'btnPCopy') {
+        const txt = pk.map(st => `${st.nom} — ${st.contact || 'sans numéro'}\n${msgPText(st)}`).join('\n\n----------\n\n');
+        (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => showAlert('Messages copiés.')).catch(() => alert('Copie impossible.'));
+      } else if (!ok.length) return alert('Aucun des destinataires cochés n\'a un numéro valide.');
+      else if (id === 'btnPSend') {
+        if (!confirm(`Ouvrir ${ok.length} conversation(s) WhatsApp ? Si le navigateur bloque les fenêtres, autorisez les pop-up pour cette page, puis recommencez (ou utilisez « Envoyer au suivant »).`)) return;
+        ok.forEach(st => window.open(waUrl(st, msgPText(st)), '_blank'));
+      } else { window.open(waUrl(ok[msgPQueue % ok.length], msgPText(ok[msgPQueue % ok.length])), '_blank'); msgPQueue = (msgPQueue + 1) % ok.length; showAlert(`Message ${msgPQueue || ok.length}/${ok.length} ouvert.`); }
+    }
+  });
+
   function renderMsg() {
     const sel = document.getElementById('msgClasse'), keep = sel.value, cl = [...new Set(appState.students.map(x => x.classe))];
     sel.innerHTML = '<option value="">Toutes les classes</option>' + cl.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
     sel.value = cl.includes(keep) ? keep : '';
+    renderMsgPick();
     const list = msgList(), withTel = list.filter(x => waLink(x));
     if (msgQueue > withTel.length) msgQueue = 0;
     document.getElementById('msgInfo').textContent = `${list.length} élève(s) • ${withTel.length} parent(s) avec un numéro valide${list.length - withTel.length ? ' • ' + (list.length - withTel.length) + ' sans contact' : ''} • Mois en cours (non compté) : ${MOIS[Math.max(0, moisIndexNow())]}.`;
@@ -4931,7 +5027,7 @@ return r('./index');})();
     }).join('') || '<tr><td colspan="5" style="color:var(--muted);">Aucun élève.</td></tr>';
   }
   const secMsg = document.getElementById('sec_MSG');
-  secMsg.addEventListener('change', () => { msgQueue = 0; renderMsg(); });
+  secMsg.addEventListener('change', (e) => { if (e.target.closest && e.target.closest('#msgPCard')) return; msgQueue = 0; renderMsg(); });
   secMsg.addEventListener('click', (e) => {
     const id = e.target.id; if (!id || id.indexOf('btnMsg') !== 0) return;
     const list = msgList(), withTel = list.filter(x => waLink(x));
@@ -5715,7 +5811,17 @@ let pendingPhoto = null;
   document.getElementById('sec_CONFIG').addEventListener('change', (e) => {
     if (!can('config')) return;
     const action = e.target.dataset.action;
-    if (action === 'coef') {
+    if (action === 'subname') {
+      const subId = e.target.dataset.subid, nv = e.target.value.trim().replace(/\s+/g, ' ');
+      const list = appState.subjects[appState.classe] || [], cur = list.find(s => s.id === subId);
+      if (!cur) return;
+      if (!nv) { e.target.value = cur.nom; return alert('Le nom de la matière ne peut pas être vide.'); }
+      if (list.some(s => s.id !== subId && s.nom.toLowerCase() === nv.toLowerCase())) { e.target.value = cur.nom; return alert('Cette matière existe déjà dans la classe.'); }
+      const old = cur.nom;
+      appState.subjects[appState.classe] = list.map(s => s.id === subId ? { ...s, nom: nv } : s);
+      appState.edt.forEach(x => { if (x.classe === appState.classe && x.matiere === old) x.matiere = nv; });
+      populateSubjectsSelect(); saveState(true); renderConfig(); showAlert('Matière renommée : ' + nv);
+    } else if (action === 'coef') {
       const subId = e.target.dataset.subid;
       const coef = Math.max(1, parseFloat(e.target.value) || 1);
       appState.subjects[appState.classe] = (appState.subjects[appState.classe] || []).map(s => s.id === subId ? { ...s, coef } : s);
