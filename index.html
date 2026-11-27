@@ -213,7 +213,7 @@
     .hon-com { font-size: 0.74rem; font-style: italic; margin-top: 6px; padding: 3px; border-radius: 6px; min-height: 2.4em; }
     .hon-com:focus { outline: 2px solid var(--primary); background: #fff; }
     .tbl-tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 0 0 8px; }
-    .tbl-tools input { flex: 1 1 220px; min-width: 160px; }
+    .tbl-tools input { flex: 0 0 auto; width: calc(12ch + 28px); min-width: 0; }
     .tbl-tools select { flex: 0 0 auto; width: auto; }
     .tbl-tools small { color: var(--muted); }
     .print-only { display: none; }
@@ -4904,7 +4904,7 @@ return r('./index');})();
     const root = document.querySelector(sel); if (!root) return;
     const anchor = area ? root : (root.closest('table') ? (root.closest('table').parentElement.style.overflowX ? root.closest('table').parentElement : root.closest('table')) : root);
     const bar = document.createElement('div'); bar.className = 'tbl-tools no-print';
-    bar.innerHTML = '<input type="search" placeholder="🔎 Recherche rapide (nom ou matricule)" autocomplete="off" /><select aria-label="Ordre"><option value="o">Ordre d\'origine</option><option value="az">Alphabétique A → Z</option><option value="za">Alphabétique Z → A</option></select><small></small>';
+    bar.innerHTML = '<input type="search" placeholder="🔎 Rechercher" title="Recherche rapide : nom ou matricule" size="12" autocomplete="off" /><select aria-label="Ordre"><option value="o">Ordre d\'origine</option><option value="az">Alphabétique A → Z</option><option value="za">Alphabétique Z → A</option></select><small></small>';
     anchor.parentNode.insertBefore(bar, anchor);
     const inp = bar.querySelector('input'), ord = bar.querySelector('select'), cnt = bar.querySelector('small');
     let busy = false;
@@ -4928,8 +4928,10 @@ return r('./index');})();
           if (sg.head) { sg.head.style.display = (q && sg.rows.length && !vis) ? 'none' : ''; final.push(sg.head); }
           final.push(...sg.rows.slice().sort((a, b) => v === 'o' ? a.dataset.o - b.dataset.o : (v === 'az' ? 1 : -1) * nameCell(a, idx).localeCompare(nameCell(b, idx), 'fr', { sensitivity: 'base' })));
         });
+        let k = 0; const ni = ths.findIndex(th => /^(n\s*[°ºo]?|#)$/i.test(th.textContent.trim()));
         const now = Array.from(tb.rows);
         if (final.length === now.length && final.some((r, i) => r !== now[i])) final.forEach(r => tb.appendChild(r));
+        if (ni >= 0) final.forEach(r => { if (r.style.display !== 'none' && rows.includes(r) && r.cells[ni]) r.cells[ni].textContent = ++k; });
         cnt.textContent = rows.length ? (q ? shown + ' / ' + rows.length : rows.length + ' ligne(s)') : '';
       }
       busy = false; if (mo) mo.takeRecords();
