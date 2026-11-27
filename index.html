@@ -2540,9 +2540,26 @@ return r('./index');})();
     appState = clone(INITIAL_DATA);
   }
   // Met à jour (migre) les données enregistrées vers le format courant ; sans danger si répété
+  // Affichage « Prénom Nom » : élèves (champs prénom / nom de famille) et personnel (NOM Prénom → Prénom NOM)
+  function prenomNom(n) {
+    const t = String(n || '').trim().split(/\s+/);
+    if (t.length < 2) return String(n || '');
+    const cap = w => w.length >= 2 && !/[.']/.test(w) && w === w.toUpperCase() && w !== w.toLowerCase();
+    let k = 0; while (k < t.length - 1 && cap(t[k])) k++;
+    if (!k || t.every(cap)) return String(n);
+    return t.slice(k).concat(t.slice(0, k)).join(' ');
+  }
+  const fixStu = st => {
+    if (!st) return st;
+    if (!st.prenom && !st.nomFamille && st.nom) { const t = String(st.nom).trim().split(/\s+/); if (t.length > 1) { st.nomFamille = t.shift(); st.prenom = t.join(' '); } }
+    if (st.prenom && st.nomFamille) st.nom = (st.prenom + ' ' + st.nomFamille).trim();
+    return st;
+  };
   function normalizeState() {
     START_YEAR = parseInt(appState.anneeDebut) || 2026;
     appState.anneeDebut = START_YEAR;
+    (appState.students || []).forEach(fixStu); (appState.archives || []).forEach(a => (a.students || []).forEach(fixStu));
+    if (!appState.namesV2) { appState.namesV2 = true; (appState.employes || []).forEach(e => { e.nom = prenomNom(e.nom); }); (appState.users || []).forEach(u => { u.nom = prenomNom(u.nom); }); }
     if (!Array.isArray(appState.users) || !appState.users.length) appState.users = clone(DEFAULT_USERS);
     if (!appState.rolePerms) appState.rolePerms = clone(DEFAULT_PERMS);
     Object.keys(ROLES).forEach(r => { if (!Array.isArray(appState.rolePerms[r])) appState.rolePerms[r] = clone(DEFAULT_PERMS[r]); });
@@ -2608,7 +2625,7 @@ return r('./index');})();
       const old = Array.isArray(appState.anciens) ? appState.anciens : clone(INITIAL_DATA.anciens);
       appState.archives = [{
         id: 'a_seed', annee: '2025-2026', date: '', partial: true, classes: [], subjects: {}, fees: {},
-        students: old.map((o, i) => ({ id: i + 1, matricule: o.matricule, prenom: o.prenom || '', nomFamille: o.nomFamille || o.nom || '', nom: ((o.nomFamille || o.nom || '') + ' ' + (o.prenom || '')).trim(), sexe: o.sexe || '', naissance: o.naissance || '', lieuNaissance: o.lieuNaissance || '', adresse: o.adresse || '', pere: o.pere || '', mere: o.mere || '', contact: o.contact || '', classe: o.classe || '', typeInsc: 'INSCRIPTION', paiements: [], absences: 0, notes: {} }))
+        students: old.map((o, i) => ({ id: i + 1, matricule: o.matricule, prenom: o.prenom || '', nomFamille: o.nomFamille || o.nom || '', nom: ((o.prenom || '') + ' ' + (o.nomFamille || o.nom || '')).trim(), sexe: o.sexe || '', naissance: o.naissance || '', lieuNaissance: o.lieuNaissance || '', adresse: o.adresse || '', pere: o.pere || '', mere: o.mere || '', contact: o.contact || '', classe: o.classe || '', typeInsc: 'INSCRIPTION', paiements: [], absences: 0, notes: {} }))
       }];
       delete appState.anciens;
     }
@@ -3023,7 +3040,7 @@ return r('./index');})();
   }
 
   function applyAccess() {
-    document.getElementById('userName').textContent = currentUser.nom;
+    document.getElementById('userName').textContent = prenomNom(currentUser.nom);
     document.getElementById('userRole').textContent = ROLES[currentUser.role].label;
     TAB_ORDER.forEach(t => {
       const b = document.getElementById('tab_' + t);
@@ -3991,7 +4008,7 @@ return r('./index');})();
 
     const pending = appState.users.filter(u => u.statut === 'attente');
     document.getElementById('pendingBody').innerHTML = pending.map(u => `<tr>
-      <td><strong>${esc(u.nom)}</strong></td>
+      <td><strong>${esc(prenomNom(u.nom))}</strong></td>
       <td>${esc(u.username)}</td>
       <td><span class="role-pill warn">${ROLES[u.roleDemande || u.role] ? ROLES[u.roleDemande || u.role].label : esc(u.role)}</span></td>
       <td style="font-size:0.8rem;">${esc(u.note || '—')}</td>
@@ -3999,7 +4016,7 @@ return r('./index');})();
     </tr>`).join('') || '<tr><td colspan="5" style="color: var(--muted); padding: 1rem;">Aucune demande en attente.</td></tr>';
 
     document.getElementById('usersBody').innerHTML = appState.users.filter(u => u.statut !== 'attente').map(u => `<tr>
-      <td><strong>${esc(u.nom)}</strong></td>
+      <td><strong>${esc(prenomNom(u.nom))}</strong></td>
       <td>${esc(u.username)}</td>
       <td><span class="role-pill">${ROLES[u.role] ? ROLES[u.role].label : esc(u.role)}</span>${u.statut === 'refuse' ? ' <span class="role-pill bad">Refusé</span>' : ''}</td>
       <td style="white-space:nowrap;">${expiryBadge(u)}${u.role === 'ADMIN' ? '' : `<br><span style="display:inline-flex; gap:4px; margin-top:4px;"><button type="button" class="btn btn-outline" data-action="renew" data-m="1" data-uid="${u.id}" style="padding:2px 6px; font-size:0.68rem;">+1 mois</button><button type="button" class="btn btn-outline" data-action="renew" data-m="3" data-uid="${u.id}" style="padding:2px 6px; font-size:0.68rem;">+3 mois</button><button type="button" class="btn btn-outline" data-action="renew" data-m="12" data-uid="${u.id}" style="padding:2px 6px; font-size:0.68rem;">+1 an</button></span>`}</td>
@@ -4594,11 +4611,11 @@ return r('./index');})();
       if (ex) {
         Object.keys(data).forEach(k => { if (data[k]) ex[k] = data[k]; });
         if (cl) ex.classe = cl.nom;
-        ex.nom = ((ex.nomFamille || '') + ' ' + (ex.prenom || '')).trim();
+        ex.nom = ((ex.prenom || '') + ' ' + (ex.nomFamille || '')).trim();
         updated++;
       } else {
         if (!data.prenom || !data.nomFamille) return skipped.push(`ligne ${line} : prénom ou nom manquant`);
-        appState.students.push({ id: newStudentId(), matricule: mat, classe: cl ? cl.nom : (appState.classe || appState.classes[0].nom), ...data, sexe: sx || 'M', nom: data.nomFamille + ' ' + data.prenom, typeInsc: 'INSCRIPTION', paiements: [], absences: 0, notes: {} });
+        appState.students.push({ id: newStudentId(), matricule: mat, classe: cl ? cl.nom : (appState.classe || appState.classes[0].nom), ...data, sexe: sx || 'M', nom: data.prenom + ' ' + data.nomFamille, typeInsc: 'INSCRIPTION', paiements: [], absences: 0, notes: {} });
         added++;
       }
     });
@@ -5548,7 +5565,7 @@ document.getElementById('modeNew').addEventListener('click', () => setInscMode('
     if (matriculeExists(matricule)) return alert('Ce matricule est déjà attribué à un autre élève.');
     appState.students.push({
       id: newStudentId(), matricule, classe: v('nsClasse') || appState.classes[0].nom,
-      prenom, nomFamille, nom: nomFamille + ' ' + prenom,
+      prenom, nomFamille, nom: prenom + ' ' + nomFamille,
       sexe: v('nsSexe'), naissance: v('nsNaissance'), lieuNaissance: v('nsLieu'), adresse: v('nsAdresse'),
       pere: v('nsPere'), mere: v('nsMere'), contact: v('nsContact'),
       typeInsc: 'INSCRIPTION', paiements: [], absences: 0, notes: {}
@@ -5556,7 +5573,7 @@ document.getElementById('modeNew').addEventListener('click', () => setInscMode('
     ['nsMatricule', 'nsPrenom', 'nsNom', 'nsNaissance', 'nsLieu', 'nsAdresse', 'nsPere', 'nsMere', 'nsContact'].forEach(id => { document.getElementById(id).value = ''; });
     saveState(false);
     renderConfig();
-    showAlert('Élève inscrit : ' + nomFamille + ' ' + prenom + ' (' + matricule + ')');
+    showAlert('Élève inscrit : ' + prenom + ' ' + nomFamille + ' (' + matricule + ')');
   });
 
   document.getElementById('formReStudent').addEventListener('submit', (e) => {
@@ -5569,7 +5586,7 @@ document.getElementById('modeNew').addEventListener('click', () => setInscMode('
     const nomFamille = a.nomFamille || a.nom || '', prenom = a.prenom || '';
     appState.students.push({
       id: (a.id && !appState.students.some(x => x.id === a.id)) ? a.id : newStudentId(), matricule: a.matricule, classe: document.getElementById('reClasse').value || appState.classes[0].nom,
-      prenom, nomFamille, nom: (nomFamille + ' ' + prenom).trim(),
+      prenom, nomFamille, nom: (prenom + ' ' + nomFamille).trim(),
       sexe: a.sexe || '', naissance: a.naissance || '', lieuNaissance: a.lieuNaissance || '', adresse: a.adresse || '',
       pere: a.pere || '', mere: a.mere || '', contact: a.contact || '',
       typeInsc: 'REINSCRIPTION', paiements: [], absences: 0, notes: {}
@@ -5578,7 +5595,7 @@ document.getElementById('modeNew').addEventListener('click', () => setInscMode('
     saveState(false);
     renderConfig();
     updateRePreview();
-    showAlert('Élève réinscrit : ' + (nomFamille + ' ' + prenom).trim() + ' (' + a.matricule + ')');
+    showAlert('Élève réinscrit : ' + (prenom + ' ' + nomFamille).trim() + ' (' + a.matricule + ')');
   });
 
   document.getElementById('btnArchive').addEventListener('click', () => {
@@ -5698,7 +5715,7 @@ let pendingPhoto = null;
     const matricule = v('esMatricule'), prenom = v('esPrenom'), nomFamille = v('esNom');
     if (!matricule || !prenom || !nomFamille) return alert('Matricule, prénom et nom sont obligatoires.');
     if (appState.students.some(x => x.id !== stu.id && (x.matricule || '').toLowerCase() === matricule.toLowerCase())) return alert('Ce matricule est déjà attribué à un autre élève.');
-    Object.assign(stu, { matricule, prenom, nomFamille, nom: nomFamille + ' ' + prenom, sexe: v('esSexe'), classe: v('esClasse') || stu.classe,
+    Object.assign(stu, { matricule, prenom, nomFamille, nom: prenom + ' ' + nomFamille, sexe: v('esSexe'), classe: v('esClasse') || stu.classe,
       naissance: v('esNaissance'), lieuNaissance: v('esLieu'), adresse: v('esAdresse'), pere: v('esPere'), mere: v('esMere'), contact: v('esContact') });
     appState.photos = appState.photos || {};
     const pkey = matricule.toLowerCase();
@@ -6059,6 +6076,7 @@ let pendingPhoto = null;
   }
   function applyRemoteDoc(id, json) {
     const val = JSON.parse(json), i = id.indexOf('_'), kind = id.slice(0, i), key = id.slice(i + 1);
+    if (kind === 'stu' || kind === 'arcs') fixStu(val); else if (kind === 'arcm') (val.students || []).forEach(fixStu);
     if (kind === 'stu') {
       const idx = appState.students.findIndex(x => String(x.id) === key);
       if (idx >= 0) appState.students[idx] = val; else appState.students.push(val);
