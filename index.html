@@ -3858,8 +3858,9 @@ return r('./index');})();
     if (showFin) {
       const cls = taux >= 80 ? '' : (taux >= 50 ? 'amber' : 'red');
       const ab = ['Oct', 'Nov', 'Déc', 'Janv', 'Fév', 'Mars', 'Avr', 'Mai', 'Juin'];
-      const paid = MOIS.map((m, k) => students.reduce((a, st) => a + moisPaye(st, k), 0));
-      const due = MOIS.map((m, k) => students.reduce((a, st) => a + feesOf(st.classe).mensualite, 0));
+      const nz = v => (Number.isFinite(+v) ? +v : 0);
+      const paid = MOIS.map((m, k) => students.reduce((a, st) => a + nz(moisPaye(st, k)), 0));
+      const due = MOIS.map((m, k) => students.reduce((a, st) => a + nz((feesOf(st.classe) || {}).mensualite), 0));
       const W = 640, H = 230, L = 52, R = 14, T = 16, B = 30, mx = Math.max(1, ...paid, ...due) * 1.08;
       const X = i => L + i * (W - L - R) / (MOIS.length - 1), Y = v => T + (H - T - B) * (1 - v / mx);
       const curve = arr => { const pts = arr.map((v, i) => [X(i), Y(v)]); let d = 'M' + pts[0][0] + ',' + pts[0][1];
@@ -3975,7 +3976,7 @@ return r('./index');})();
     const role = document.getElementById('eRole').value;
     if (!nom) return alert('Le nom est obligatoire.');
     if (statut === 'refuse') {
-      u.statut = 'refuse';
+      appState.users = appState.users.filter(x => x.id !== u.id);
     } else {
       if (u.id === currentUser.id && role !== 'ADMIN') return alert("Vous ne pouvez pas retirer votre propre rôle d'administrateur.");
       if (u.role === 'ADMIN' && role !== 'ADMIN' && u.statut === 'actif' && activeAdmins() <= 1) return alert('Il faut conserver au moins un administrateur actif.');
@@ -3990,7 +3991,7 @@ return r('./index');})();
     saveState(false);
     closeEdit();
     renderUsers();
-    showAlert(statut === 'refuse' ? 'Demande refusée.' : (statut === 'actif' && document.getElementById('btnEditValidate').classList.contains('hidden') ? 'Compte mis à jour.' : 'Compte validé : ' + u.username));
+    showAlert(statut === 'refuse' ? 'Demande refusée et retirée de la liste : la personne pourra renvoyer une nouvelle demande.' : (statut === 'actif' && document.getElementById('btnEditValidate').classList.contains('hidden') ? 'Compte mis à jour.' : 'Compte validé : ' + u.username));
   }
 
   function toggleUserFormBoxes() { toggleBoxes('uRole', 'uAffectBox', 'uElevesBox'); }
@@ -5302,10 +5303,17 @@ return r('./index');})();
       cloudRegister(email, pass, prof).then(() => {
         document.getElementById('registerForm').reset();
         showLoginMode(false, "Demande envoyée. Votre compte sera utilisable dès que l'administrateur l'aura validé.");
-      }).catch(err => fail(/email-already-in-use/.test((err && err.code) || '') ? 'Un compte existe déjà avec cette adresse e-mail.' : 'Impossible de créer le compte : ' + ((err && err.message) || 'vérifiez la connexion internet.')));
+      }).catch(err => { const c = (err && err.code) || '';
+        fail(/exists-wrongpass/.test(c) ? "Cette adresse e-mail a déjà servi. Nous venons de vous envoyer un e-mail pour choisir un nouveau mot de passe (vérifiez aussi les courriers indésirables). Ensuite, revenez ici et renvoyez votre demande avec ce nouveau mot de passe."
+          : /exists-pending/.test(c) ? "Une demande est déjà en attente de validation pour cette adresse e-mail."
+          : /exists-active/.test(c) ? "Un compte actif existe déjà avec cette adresse e-mail : utilisez la connexion."
+          : /permission|insufficient/i.test((err && err.message) || '') ? "Demande impossible pour l'instant : l'administrateur doit autoriser les nouvelles demandes (règles Firestore)."
+          : 'Impossible de créer le compte : ' + ((err && err.message) || 'vérifiez la connexion internet.')); });
       return;
     }
-    if (appState.users.some(u => u.username.toLowerCase() === email.toLowerCase())) return fail('Un compte existe déjà avec cette adresse e-mail.');
+    { const ex = appState.users.find(u => u.username.toLowerCase() === email.toLowerCase());
+      if (ex && ex.statut !== 'refuse') return fail('Un compte existe déjà avec cette adresse e-mail.');
+      if (ex) appState.users = appState.users.filter(u => u.id !== ex.id); }
     const nu = {
       id: 'u_' + Date.now(), username: email, nom, role, roleDemande: role, note,
       pwd: hashPwd(pass), statut: 'attente', affect: [], eleves: [], createdAt: new Date().toISOString()
@@ -6307,7 +6315,20 @@ let pendingPhoto = null;
   }
   async function cloudRegister(email, pass, prof) {
     await ensureFirebase();
-    const cred = await firebase.auth().createUserWithEmailAndPassword(email, pass);
+    let cred;
+    try { cred = await firebase.auth().createUserWithEmailAndPassword(email, pass); }
+    catch (err) {
+      if (!/email-already-in-use/.test((err && err.code) || '')) throw err;
+      // L'identifiant existe déjà côté Firebase (compte supprimé ou demande refusée) : on tente de le rattacher à une nouvelle demande
+      try { cred = await firebase.auth().signInWithEmailAndPassword(email, pass); }
+      catch (e2) { try { await firebase.auth().sendPasswordResetEmail(email); } catch (e4) {} const er = new Error('exists-wrongpass'); er.code = 'app/exists-wrongpass'; throw er; }
+      const ref = firebase.firestore().collection('profils').doc(cred.user.uid);
+      let snap; try { snap = await ref.get(); } catch (e3) { snap = null; }
+      if (snap && snap.exists) {
+        const st = snap.data().statut;
+        if (st !== 'refuse') { await firebase.auth().signOut(); const er = new Error('exists-' + st); er.code = 'app/exists-' + (st === 'attente' ? 'pending' : 'active'); throw er; }
+      }
+    }
     try { await firebase.firestore().collection('profils').doc(cred.user.uid).set(prof); }
     finally { await firebase.auth().signOut(); }
   }
