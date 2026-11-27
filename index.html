@@ -212,6 +212,10 @@
     .hon-ph { display: flex; align-items: center; justify-content: center; font-size: 1.6rem; font-weight: 800; color: var(--primary-dark); }
     .hon-com { font-size: 0.74rem; font-style: italic; margin-top: 6px; padding: 3px; border-radius: 6px; min-height: 2.4em; }
     .hon-com:focus { outline: 2px solid var(--primary); background: #fff; }
+    .tbl-tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 0 0 8px; }
+    .tbl-tools input { flex: 1 1 220px; min-width: 160px; }
+    .tbl-tools select { flex: 0 0 auto; width: auto; }
+    .tbl-tools small { color: var(--muted); }
     .print-only { display: none; }
     #bulletinBatch { display: none; }
     @media print {
@@ -4894,6 +4898,49 @@ return r('./index');})();
     initUI(); setTab('BULLETIN');
     const sl = document.getElementById('bulletinStudentSelect'); sl.value = st.id; renderBulletin();
   });
+
+  // ===== Recherche rapide et tri alphabétique sur les tableaux d'élèves =====
+  function addTableTools(sel, area) {
+    const root = document.querySelector(sel); if (!root) return;
+    const anchor = area ? root : (root.closest('table') ? (root.closest('table').parentElement.style.overflowX ? root.closest('table').parentElement : root.closest('table')) : root);
+    const bar = document.createElement('div'); bar.className = 'tbl-tools no-print';
+    bar.innerHTML = '<input type="search" placeholder="🔎 Recherche rapide (nom ou matricule)" autocomplete="off" /><select aria-label="Ordre"><option value="o">Ordre d\'origine</option><option value="az">Alphabétique A → Z</option><option value="za">Alphabétique Z → A</option></select><small></small>';
+    anchor.parentNode.insertBefore(bar, anchor);
+    const inp = bar.querySelector('input'), ord = bar.querySelector('select'), cnt = bar.querySelector('small');
+    let busy = false;
+    const nameCell = (tr, idx) => { const c = tr.cells[Math.min(idx, tr.cells.length - 1)]; const st = c && c.querySelector('strong'); return ((st || c || {}).textContent || '').trim(); };
+    function apply() {
+      if (busy) return; busy = true;
+      const tb = area ? root.querySelector('tbody') : root;
+      if (tb) {
+        const table = tb.closest('table'), ths = table && table.tHead ? Array.from(table.tHead.querySelectorAll('th')) : [];
+        let idx = ths.findIndex(th => /nom|élève|eleve/i.test(th.textContent)); if (idx < 0) idx = 0;
+        const isHead = r => r.cells.length <= 1 || !!r.querySelector('td[colspan]');
+        const segs = []; let cur = { head: null, rows: [] };
+        Array.from(tb.rows).forEach(r => { if (isHead(r)) { if (cur.head || cur.rows.length) segs.push(cur); cur = { head: r, rows: [] }; } else cur.rows.push(r); });
+        segs.push(cur);
+        const rows = segs.reduce((a, sg) => a.concat(sg.rows), []);
+        rows.forEach((r, i) => { if (r.dataset.o === undefined) r.dataset.o = i; });
+        const q = inp.value.trim().toLowerCase(), v = ord.value; let shown = 0; const final = [];
+        segs.forEach(sg => {
+          let vis = 0;
+          sg.rows.forEach(r => { const ok = !q || r.textContent.toLowerCase().includes(q); r.style.display = ok ? '' : 'none'; if (ok) { shown++; vis++; } });
+          if (sg.head) { sg.head.style.display = (q && sg.rows.length && !vis) ? 'none' : ''; final.push(sg.head); }
+          final.push(...sg.rows.slice().sort((a, b) => v === 'o' ? a.dataset.o - b.dataset.o : (v === 'az' ? 1 : -1) * nameCell(a, idx).localeCompare(nameCell(b, idx), 'fr', { sensitivity: 'base' })));
+        });
+        const now = Array.from(tb.rows);
+        if (final.length === now.length && final.some((r, i) => r !== now[i])) final.forEach(r => tb.appendChild(r));
+        cnt.textContent = rows.length ? (q ? shown + ' / ' + rows.length : rows.length + ' ligne(s)') : '';
+      }
+      busy = false; if (mo) mo.takeRecords();
+    }
+    let mo = null;
+    inp.addEventListener('input', apply); ord.addEventListener('change', apply);
+    mo = new MutationObserver(() => { if (!busy) apply(); }); mo.observe(root, { childList: true, subtree: !!area });
+    apply();
+  }
+  ['#studentsTableBody', '#notesBody', '#presBody', '#resBody', '#resMeritBody', '#msgBody', '#archBody', '#rechBody'].forEach(x => addTableTools(x, false));
+  addTableTools('#recouvArea', true);
 
   function renderTopLevels() {
     const pool = (can('config') || can('users') || can('fin_view')) ? appState.students : visibleStudents();
