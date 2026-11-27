@@ -428,7 +428,7 @@
       <div class="card"><h3>Meilleurs élèves par niveau (top 3)</h3><div id="dashTop"></div></div>
       <div class="card"><h3>Élèves sous la moyenne</h3><div id="dashRisk"></div></div>
     </div>
-    <div class="card" id="dashFinBlock"><h3>Recouvrement des frais de scolarité</h3><div id="dashFin"></div></div>
+    <div class="card" id="dashFinBlock"><h3>Recouvrement des frais de scolarité — évolution mensuelle</h3><div id="dashFin"></div></div>
   </section>
 
   <!-- ONGLET 1 : SAISIE DES NOTES PAR MATIÈRE -->
@@ -3835,13 +3835,29 @@ return r('./index');})();
 
     // Finances
     if (showFin) {
-      const impayes = students.filter(s => resteTotal(s) > 0).sort((a, b) => resteTotal(b) - resteTotal(a));
       const cls = taux >= 80 ? '' : (taux >= 50 ? 'amber' : 'red');
+      const ab = ['Oct', 'Nov', 'Déc', 'Janv', 'Fév', 'Mars', 'Avr', 'Mai', 'Juin'];
+      const paid = MOIS.map((m, k) => students.reduce((a, st) => a + moisPaye(st, k), 0));
+      const due = MOIS.map((m, k) => students.reduce((a, st) => a + feesOf(st.classe).mensualite, 0));
+      const W = 640, H = 230, L = 52, R = 14, T = 16, B = 30, mx = Math.max(1, ...paid, ...due) * 1.08;
+      const X = i => L + i * (W - L - R) / (MOIS.length - 1), Y = v => T + (H - T - B) * (1 - v / mx);
+      const curve = arr => { const pts = arr.map((v, i) => [X(i), Y(v)]); let d = 'M' + pts[0][0] + ',' + pts[0][1];
+        for (let i = 0; i < pts.length - 1; i++) { const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+          d += ` C${(p1[0] + (p2[0] - p0[0]) / 6).toFixed(1)},${(p1[1] + (p2[1] - p0[1]) / 6).toFixed(1)} ${(p2[0] - (p3[0] - p1[0]) / 6).toFixed(1)},${(p2[1] - (p3[1] - p1[1]) / 6).toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`; }
+        return d; };
+      const base = Y(0), grid = [0, 0.25, 0.5, 0.75, 1].map(f => { const v = mx / 1.08 * f; return `<line x1="${L}" x2="${W - R}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="var(--border)" stroke-width="1" /><text x="${L - 6}" y="${(Y(v) + 3).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--muted)">${v >= 1e6 ? (v / 1e6).toFixed(v >= 1e7 ? 0 : 1) + ' M' : Math.round(v / 1000) + ' k'}</text>`; }).join('');
       document.getElementById('dashFin').innerHTML = `
         <p style="margin-bottom:8px;">${formatGNF(percu)} encaissés sur ${formatGNF(attendu)} attendus — <strong>${taux} %</strong></p>
-        <div class="bar-track" style="height:16px;"><div class="bar-fill ${cls}" style="width:${taux}%"></div></div>
-        <p style="margin:14px 0 4px; font-size:0.8rem; color:var(--muted); font-weight:700;">Soldes à recouvrer</p>
-        ${impayes.length ? impayes.map(s => `<div class="rank-row"><span>${esc(s.nom)} <small style="color:var(--muted)">(${s.matricule})</small></span><span class="badge badge-warn">${formatGNF(resteTotal(s))}</span></div>`).join('') : '<p style="color:var(--muted)">Tous les frais sont soldés.</p>'}`;
+        <div class="bar-track" style="height:12px; margin-bottom:12px;"><div class="bar-fill ${cls}" style="width:${taux}%"></div></div>
+        <svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Encaissements mensuels de scolarité" style="max-width:100%; height:auto; display:block;">
+          ${grid}
+          <path d="${curve(paid)} L${X(MOIS.length - 1)},${base} L${X(0)},${base} Z" fill="var(--primary)" opacity="0.12" />
+          <path d="${curve(due)}" fill="none" stroke="var(--muted)" stroke-width="2" stroke-dasharray="5 4" />
+          <path d="${curve(paid)}" fill="none" stroke="var(--primary)" stroke-width="3" stroke-linecap="round" />
+          ${paid.map((v, i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="4" fill="var(--primary)" stroke="#fff" stroke-width="1.5"><title>${ab[i]} : ${formatGNF(v)} encaissés sur ${formatGNF(due[i])} attendus</title></circle>`).join('')}
+          ${ab.map((m, i) => `<text x="${X(i).toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="10.5" fill="var(--muted)">${m}</text>`).join('')}
+        </svg>
+        <p style="font-size:0.78rem; color:var(--muted); margin-top:4px;"><span style="color:var(--primary); font-weight:800;">━━</span> Encaissé par mois &nbsp; <span style="font-weight:800;">╌╌</span> Attendu par mois</p>`;
     }
   }
 
