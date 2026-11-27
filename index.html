@@ -202,8 +202,8 @@
     .bulletin-header > :first-child, .bulletin-header > :last-child { white-space: nowrap; flex: 0 0 auto !important; }
     .bulletin-header > :first-child div, .bulletin-header > :last-child p { white-space: nowrap; }
     .b-logo { width: 76px; }
-    .bulletin-header > .b-logo:nth-child(2) { transform: translateX(-14px); }
-    .bulletin-header > .b-logo:nth-child(4) { transform: translateX(14px); }
+    .bulletin-header > .b-logo:nth-child(2) { transform: translateX(-5px); }
+    .bulletin-header > .b-logo:nth-child(4) { transform: translateX(5px); }
     body.print-recouv #sec_FINANCES > *:not(#recouvCard) { display: none !important; }
     .hon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; margin-bottom: 14px; }
     .hon-card { border: 1px solid var(--border); border-radius: 12px; padding: 10px 8px; text-align: center; break-inside: avoid; page-break-inside: avoid; background: #fff; }
@@ -417,6 +417,7 @@
     </div>
     <div class="dash-hero no-print" id="dashHero"></div>
     <div class="tile-groups no-print" id="dashTiles"></div>
+    <div class="kpi-grid" id="dashLevels"></div>
     <div class="kpi-grid" id="dashKpis"></div>
     <div class="card"><h3>Comparatif des classes</h3><div style="overflow-x: auto;"><table><thead id="dashClassHead"></thead><tbody id="dashClassBody"></tbody></table></div></div>
     <div class="grid-2">
@@ -2735,6 +2736,8 @@ return r('./index');})();
     if (typeof scheduleSync === 'function') scheduleSync();
   }
 
+  // Mode réseau local (LAN) : activé automatiquement quand l'application est ouverte depuis le serveur de l'école (config.js « lan »)
+  const LAN = !!(window.ERP_CONFIG && window.ERP_CONFIG.lan);
   function saveState(notify = false) {
     appState.cycle = document.getElementById('cycleSelect').value;
     appState.classe = document.getElementById('classeInput').value;
@@ -3772,6 +3775,10 @@ return r('./index');})();
       document.getElementById('dashHero').innerHTML = `<div><h2>${hi}, ${esc((currentUser && currentUser.nom) || '')}</h2><p>${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p><span class="dash-chip">Classe ${esc(appState.classe)}</span><span class="dash-chip">${esc(periodLabel())}</span><span class="dash-chip">Barème /${bareme}</span></div><div style="font-weight:800; letter-spacing:.05em; opacity:.95;">${esc(schoolName())}</div>`; }
     document.getElementById('dashFinBlock').classList.toggle('hidden', !showFin);
 
+    { const all = (can('config') || can('users') || can('fin_view') || can('bulletin_all')) ? appState.students : visibleStudents();
+      const cnt = {}; all.forEach(st => { const l = levelOf(st.classe); (cnt[l] = cnt[l] || []).push(st); });
+      const card = (lab, arr) => `<div class="kpi"><div class="kpi-label">${lab}</div><div class="kpi-value">${arr.length}</div><div class="kpi-sub">${arr.filter(x => x.sexe === 'F').length} filles • ${arr.filter(x => x.sexe !== 'F').length} garçons</div></div>`;
+      document.getElementById('dashLevels').innerHTML = card('Total des élèves', all) + ['Primaire', 'Collège', 'Lycée', 'Secondaire'].filter(l => l !== 'Secondaire' || cnt[l]).map(l => card(l, cnt[l] || [])).join(''); }
     const data = students.map(s => ({ s, moy: computeStudentBulletin(s).moyGen }));
     const n = data.length;
     const kpis = document.getElementById('dashKpis');
@@ -5965,7 +5972,7 @@ let pendingPhoto = null;
 
   function syncStatus(state, detail) {
     sync.state = state;
-    const map = { off: ['', ''], ok: ['#16a34a', 'Synchronisé'], busy: ['#d97706', 'Synchronisation…'], offline: ['#d97706', 'Hors ligne – modifications en attente'], error: ['#dc2626', 'Erreur de synchronisation'] };
+    const map = { off: ['', ''], ok: ['#16a34a', LAN ? 'Synchronisé (réseau local)' : 'Synchronisé'], busy: ['#d97706', 'Synchronisation…'], offline: ['#d97706', LAN ? 'Serveur de l\'école injoignable – modifications en attente' : 'Hors ligne – modifications en attente'], error: ['#dc2626', 'Erreur de synchronisation'] };
     const [col, txt] = map[state] || map.off;
     const b = document.getElementById('syncBadge');
     b.classList.toggle('hidden', state === 'off');
@@ -5998,12 +6005,16 @@ let pendingPhoto = null;
       if (kind === 'arcm') Object.assign(a, val);
       else { a.students = a.students || []; const k = a.students.findIndex(x => String(x.id) === String(val.id)); if (k >= 0) a.students[k] = val; else a.students.push(val); }
       appState.archives.sort((x, y) => String(x.date || '').localeCompare(String(y.date || '')) || String(x.id).localeCompare(String(y.id)));
-    } else if (kind === 'key') appState[key] = val;
+    } else if (kind === 'pho') { appState.photos = appState.photos || {}; appState.photos[key] = val; }
+    else if (kind === 'msg') { appState.messages = appState.messages || []; const mi = appState.messages.findIndex(x => x.id === val.id); if (mi >= 0) appState.messages[mi] = val; else appState.messages.push(val); }
+    else if (kind === 'key') appState[key] = val;
     else { const dk = Object.keys(SYNC_DICTS).find(k => SYNC_DICTS[k] === kind); if (dk) { appState[dk] = appState[dk] || {}; appState[dk][key] = val; } }
   }
   function applyRemoteDelete(id) {
     const i = id.indexOf('_'), kind = id.slice(0, i), key = id.slice(i + 1);
     if (kind === 'stu') appState.students = appState.students.filter(x => String(x.id) !== key);
+    else if (kind === 'pho') { if (appState.photos) delete appState.photos[key]; }
+    else if (kind === 'msg') appState.messages = (appState.messages || []).filter(x => x.id !== key);
     else if (kind === 'arcm') appState.archives = (appState.archives || []).filter(x => x.id !== key);
     else if (kind === 'arcs') { const a = (appState.archives || []).find(x => x.id === key.slice(0, key.indexOf('__'))); if (a) a.students = (a.students || []).filter(x => String(x.id) !== key.slice(key.indexOf('__') + 2)); }
     else { const dk = Object.keys(SYNC_DICTS).find(k => SYNC_DICTS[k] === kind); if (dk && appState[dk]) delete appState[dk][key]; }
@@ -6063,12 +6074,100 @@ let pendingPhoto = null;
   }
   function scheduleSync() {
     try {
+      if (LAN) { lanSchedule(); return; }
       if (!sync.db || sync.applying) return;
       clearTimeout(sync.timer);
       sync.timer = setTimeout(runReconcile, 700);
     } catch (e) { /* module de synchronisation pas encore initialisé */ }
   }
   document.addEventListener('focusout', () => { if (sync.pendingRender) setTimeout(() => { const ae = document.activeElement; if (!(ae && /^(INPUT|SELECT|TEXTAREA)$/.test(ae.tagName)) && sync.pendingRender && currentUser) { sync.pendingRender = false; renderAll(); } }, 200); });
+
+
+  // ===== Synchronisation par le réseau local (sans internet) =====
+  const lan = { meta: {}, rev: 0, joined: false, busy: false, again: false, timer: null, applying: false, code: '' };
+  const lanHash = (str) => { let a = 5381, b = 0; for (let i = 0; i < str.length; i++) { const c = str.charCodeAt(i); a = ((a << 5) + a + c) | 0; b = (b * 31 + c) | 0; } return a + ':' + b + ':' + str.length; };
+  function lanDocs() {
+    const d = buildLocalDocs();
+    d.key_users = JSON.stringify(appState.users || []);
+    ['honneurCom', 'empSeq'].forEach(k => { if (appState[k] !== undefined) d['key_' + k] = JSON.stringify(appState[k]); });
+    Object.keys(appState.photos || {}).forEach(k => { d['pho_' + k] = JSON.stringify(appState.photos[k]); });
+    (appState.messages || []).forEach(m => { d['msg_' + m.id] = JSON.stringify(m); });
+    return d;
+  }
+  function lanSaveMeta() { try { localStorage.setItem('erp_lan_meta', JSON.stringify({ rev: lan.rev, joined: lan.joined, meta: lan.meta })); } catch (e) {} }
+  function lanSchedule() { if (lan.applying) return; clearTimeout(lan.timer); lan.timer = setTimeout(lanSync, 600); }
+  async function lanFetch(body, retry) {
+    const r = await fetch('/api/sync', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Lan-Code': lan.code }, body: JSON.stringify(body) });
+    if (r.status === 401) {
+      if (retry) throw new Error('code refusé');
+      const c = prompt("Code de synchronisation de l'école (affiché sur l'ordinateur serveur) :");
+      if (!c) throw new Error('code requis');
+      lan.code = c.trim(); try { localStorage.setItem('erp_lan_code', lan.code); } catch (e) {}
+      return lanFetch(body, true);
+    }
+    if (!r.ok) throw new Error('serveur : ' + r.status);
+    return r.json();
+  }
+  function lanApplyAll(docs, dels, replaceAll) {
+    if (replaceAll) {
+      appState.students = []; appState.archives = []; appState.photos = {}; appState.messages = []; appState.users = [];
+      Object.keys(SYNC_DICTS).forEach(k => { appState[k] = {}; });
+    }
+    Object.keys(docs).forEach(id => { try { applyRemoteDoc(id, docs[id]); } catch (e) {} });
+    dels.forEach(id => { try { applyRemoteDelete(id); } catch (e) {} });
+  }
+  async function lanSync() {
+    if (lan.busy) { lan.again = true; return; }
+    lan.busy = true;
+    try {
+      const local = lanDocs(), put = {}, del = [];
+      if (lan.joined) {
+        Object.keys(local).forEach(id => { if (lan.meta[id] !== lanHash(local[id])) put[id] = local[id]; });
+        Object.keys(lan.meta).forEach(id => { if (!(id in local)) del.push(id); });
+      }
+      const r = await lanFetch({ since: lan.joined ? lan.rev : 0, put, del });
+      if (r.reset) { lan.joined = false; lan.rev = 0; lan.meta = {}; lanSaveMeta(); lan.busy = false; return lanSync(); }
+      if (!lan.joined) {
+        if (r.empty) { lan.joined = true; lan.rev = r.rev; lan.meta = {}; lanSaveMeta(); syncStatus('busy'); lan.busy = false; return lanSync(); }
+        const hasLocal = (appState.students || []).length > 0 && Object.keys(local).length > 0;
+        if (!confirm("Cet appareil va recevoir les données du serveur de l'école.\nLes données enregistrées sur cet appareil seront remplacées. Continuer ?")) { syncStatus('error', 'non connecté au serveur'); lan.busy = false; return; }
+        lan.applying = true; lanApplyAll(r.docs, r.del || [], true); lan.applying = false;
+        lan.meta = {}; Object.keys(r.docs).forEach(id => { lan.meta[id] = lanHash(r.docs[id]); });
+        lan.joined = true; lan.rev = r.rev; lanSaveMeta();
+        normalizeState(); try { localStorage.setItem(STORAGE_KEY, JSON.stringify(appState)); } catch (e) {}
+        if (currentUser) renderAll();
+        syncStatus('ok'); lan.busy = false; return;
+      }
+      Object.keys(put).forEach(id => { lan.meta[id] = lanHash(put[id]); });
+      del.forEach(id => { delete lan.meta[id]; });
+      const after = lanDocs(); let changed = false;
+      lan.applying = true;
+      Object.keys(r.docs).forEach(id => {
+        const h = lanHash(r.docs[id]);
+        if (!after[id] || lanHash(after[id]) !== h) { try { applyRemoteDoc(id, r.docs[id]); changed = true; } catch (e) {} }
+        lan.meta[id] = h;
+      });
+      (r.del || []).forEach(id => { if (id in after && !(id in put)) { try { applyRemoteDelete(id); changed = true; } catch (e) {} } delete lan.meta[id]; });
+      lan.applying = false;
+      lan.rev = r.rev; lanSaveMeta();
+      if (changed) {
+        normalizeState(); try { localStorage.setItem(STORAGE_KEY, JSON.stringify(appState)); } catch (e) {}
+        const ae = document.activeElement;
+        if (ae && /^(INPUT|SELECT|TEXTAREA)$/.test(ae.tagName)) sync.pendingRender = true; else if (currentUser) { renderAll(); chatChanged(); }
+      }
+      syncStatus('ok');
+    } catch (err) { lan.applying = false; syncStatus(navigator.onLine === false || /fetch|Failed|NetworkError/i.test(String(err && err.message)) ? 'offline' : 'error', err && err.message); }
+    lan.busy = false;
+    if (lan.again) { lan.again = false; lanSchedule(); }
+  }
+  function lanStart() {
+    try { const m = JSON.parse(localStorage.getItem('erp_lan_meta') || '{}'); lan.rev = m.rev || 0; lan.joined = !!m.joined; lan.meta = m.meta || {}; } catch (e) {}
+    try { lan.code = localStorage.getItem('erp_lan_code') || ''; } catch (e) {}
+    syncStatus('busy');
+    lanSync();
+    setInterval(lanSync, 4000);
+    window.addEventListener('online', lanSync);
+  }
 
   const loadScript = src => new Promise((res, rej) => { const el = document.createElement('script'); el.src = src; el.onload = res; el.onerror = () => rej(new Error('Impossible de charger Firebase (pas d\'internet ?)')); document.head.appendChild(el); });
 
@@ -6304,6 +6403,7 @@ let pendingPhoto = null;
     if (sid) restored = appState.users.find(u => u.id === sid) || null;
   } catch (e) {}
   if (isCloud()) cloudInit(); else if (restored) enterApp(restored);
+  if (LAN) lanStart();
 })();
 </script>
 </body>
